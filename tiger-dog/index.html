@@ -60,6 +60,11 @@
     opacity:0; transform:translateY(-6px) scale(.94); transition:.18s ease;
   }
   #hideTag.on{ opacity:1; transform:none; }
+  #boostTag{
+    background:linear-gradient(180deg,#ffb43c,#e0892f); color:#fff; border-color:transparent;
+    opacity:0; transform:translateY(-6px) scale(.94); transition:.18s ease;
+  }
+  #boostTag.on{ opacity:1; transform:none; }
 
   #btns{ position:fixed; right:clamp(12px,3vw,26px); bottom:calc(14px + env(safe-area-inset-bottom)); display:flex; gap:10px; pointer-events:auto; }
   .iconbtn{
@@ -153,6 +158,7 @@
     <div class="stack right">
       <div class="pill" id="alertTag"><span class="tiny" style="color:#fff">⚠ 被发现了！快跑！</span></div>
       <div class="pill" id="hideTag"><span class="tiny" style="color:#fff">🌿 躲好了，它看不见你</span></div>
+      <div class="pill" id="boostTag"><span class="tiny" style="color:#fff">⚡ 胡萝卜能量，加速中！</span></div>
       <div class="pill" id="staminaWrap">
         <div style="flex:1">
           <div class="lbl" style="font-size:10px">体力 DASH</div>
@@ -178,7 +184,7 @@
     <h1>机械老虎<span class="em">来啦</span>！</h1>
     <p class="sub">你是草地上的一只小兔子 🐰<br>躲开红色的机械老虎 🐯，<b>吃到胡萝卜才加分</b>，被抓住就结束。</p>
     <div class="pair">
-      <span class="chip"><i>🥕</i> 每根胡萝卜 +10 分</span>
+      <span class="chip"><i>🥕</i> 每根 +10 分，还会加速一会儿</span>
       <span class="chip"><i>⚡</i> 空格冲刺逃命</span>
       <span class="chip"><i>🌳</i> 躲进灌木丛可隐身</span>
     </div>
@@ -228,6 +234,7 @@ var el = {
   stamina: document.getElementById('staminaFill'),
   alert: document.getElementById('alertTag'),
   hide:  document.getElementById('hideTag'),
+  boost: document.getElementById('boostTag'),
   start: document.getElementById('startScreen'),
   over:  document.getElementById('overScreen'),
   finalScore: document.getElementById('finalScore'),
@@ -308,13 +315,15 @@ var lastT = 0, runT = 0, graceT = 0;
 try { best = parseInt(localStorage.getItem('roboTigerBest2') || '0', 10) || 0; } catch(e){ best = 0; }
 el.best.textContent = best;
 
-var RABBIT_SPEED = 200, RABBIT_ACCEL = 1500;
+var RABBIT_SPEED = 245, RABBIT_ACCEL = 1500;
 var DASH_SPEED = 500, DASH_TIME = 0.30, DASH_COST = 30, STAM_REGEN = 22, STAM_DELAY = 0.5;
+// 吃到胡萝卜后的短暂加速
+var BOOST_TIME = 2.6, BOOST_MUL = 1.34;
 // 场地越大，角色绝对速度越快；小屏（手机）按比例放慢，保证"每秒能跑过几屏"的体感一致
 var SZ = 1, TIGER_BASE = 132, TIGER_RAMP = 4.2, TIGER_RAMP_MAX = 96;
 function applyScale(){
   SZ = clamp(Math.sqrt((W * H) / 810000), 0.62, 1.10);
-  RABBIT_SPEED = 200 * SZ;
+  RABBIT_SPEED = 245 * SZ;
   RABBIT_ACCEL = 1500 * SZ;
   DASH_SPEED = 500 * SZ;
 }
@@ -337,7 +346,7 @@ function buildField(){
 
 function resetWorld(){
   rabbit = { x: W * 0.5, y: H * 0.68, vx: 0, vy: 0, r: 17, ang: -Math.PI / 2,
-          stam: 100, dashT: 0, regenWait: 0, bob: 0, face: 1 };
+          stam: 100, dashT: 0, regenWait: 0, bob: 0, face: 1, boostT: 0 };
   tiger = { x: W * 0.5, y: MARGIN + 70, vx: 0, vy: 0, r: 30, ang: Math.PI / 2,
             alert: false, alertT: 0, speed: 176, wp: null, legP: 0, seek: 0 };
   carrots = []; bushes = [];
@@ -361,6 +370,7 @@ function resetWorld(){
   el.time.textContent = '0.0';
   el.stamina.style.width = '100%';
   el.alert.classList.remove('on');
+  el.boost.classList.remove('on');
 }
 
 /* 让小狗出生点附近别被灌木堵死 */
@@ -496,7 +506,9 @@ function update(dt){
   if (ax || ay){ var l = Math.hypot(ax, ay); ax /= l; ay /= l; }
 
   if (rabbit.dashT > 0) rabbit.dashT -= dt;
-  var targetSpeed = rabbit.dashT > 0 ? DASH_SPEED : RABBIT_SPEED;
+  if (rabbit.boostT > 0) rabbit.boostT -= dt;
+  var boosted = rabbit.boostT > 0;
+  var targetSpeed = rabbit.dashT > 0 ? DASH_SPEED : RABBIT_SPEED * (boosted ? BOOST_MUL : 1);
   var tvx = ax * targetSpeed, tvy = ay * targetSpeed;
   var k = clamp(RABBIT_ACCEL * dt / Math.max(targetSpeed, 1), 0, 1);
   if (rabbit.dashT > 0) k = 1;
@@ -536,7 +548,8 @@ function update(dt){
         Math.pow(bushes[bi].r + rabbit.r * 1.3, 2)){ hug = true; break; }
   }
   var hidden = hug || segBlocked(tiger.x, tiger.y, rabbit.x, rabbit.y);
-  var sees = (d < 108 * SZ && !hidden) || (d < 380 * SZ && facing < 0.95 && !hidden);
+  // 视野收窄：扇形 280px / ±0.80rad，近身嗅觉 90px —— 380/0.95 时玩家几乎无处可逃
+  var sees = (d < 90 * SZ && !hidden) || (d < 280 * SZ && facing < 0.80 && !hidden);
 
   if (sees){ tiger.alert = true; tiger.alertT = 1.1; }
   else if (tiger.alertT > 0) tiger.alertT -= dt;
@@ -594,6 +607,7 @@ function update(dt){
   // 两个提示互斥：藏好了就显示绿色，暴露了才显示红色（老虎 1.1s 的记忆不算"看见"）
   el.alert.classList.toggle('on', tiger.alert && !hidden);
   el.hide.classList.toggle('on', hidden && !frozen);
+  el.boost.classList.toggle('on', rabbit.boostT > 0);
 
   /* ---- 骨头 ---- */
   for (var i = carrots.length - 1; i >= 0; i--){
@@ -602,7 +616,9 @@ function update(dt){
     if (dist2(b.x, b.y, rabbit.x, rabbit.y) < Math.pow(rabbit.r + 21, 2)){
       carrots.splice(i, 1);
       carrotCount++; score += 10;
+      rabbit.boostT = BOOST_TIME;      // 吃萝卜 → 短暂加速
       tone(880, .09, 'triangle', .14); setTimeout(function(){ tone(1320, .1, 'triangle', .12); }, 70);
+      setTimeout(function(){ tone(1560, .12, 'sine', .09); }, 140);
       for (var s = 0; s < 12; s++){
         var a = rand(0, 6.283);
         sparks.push({ x: b.x, y: b.y, vx: Math.cos(a) * rand(40, 170), vy: Math.sin(a) * rand(40, 170) - 30,
@@ -840,6 +856,33 @@ function drawRabbit(){
   ctx.beginPath(); ctx.ellipse(d.x, d.y + FOOT, R * .92, R * .30, 0, 0, 6.2832); ctx.fill();
   ctx.restore();
 
+  // 加速状态：身后拖出风线 + 身体一圈淡金色光晕
+  if (d.boostT > 0){
+    var spd = Math.hypot(d.vx, d.vy);
+    if (spd > 30){
+      var bx = -d.vx / spd, by = -d.vy / spd;
+      ctx.save();
+      ctx.lineCap = 'round';
+      for (var si = 0; si < 4; si++){
+        var off = (si - 1.5) * 7;
+        var len = 26 + Math.sin(runT * 14 + si * 1.9) * 9;
+        ctx.globalAlpha = .34 - si * 0.05;
+        ctx.strokeStyle = '#ffe9a8';
+        ctx.lineWidth = 3.4 - si * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(d.x + bx * (R + 6) - by * off, d.y + by * (R + 6) + bx * off);
+        ctx.lineTo(d.x + bx * (R + 6 + len) - by * off, d.y + by * (R + 6 + len) + bx * off);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    var aur = ctx.createRadialGradient(d.x, d.y - R * 0.3, R * 0.4, d.x, d.y - R * 0.3, R * 1.9);
+    aur.addColorStop(0, 'rgba(255,214,110,.30)');
+    aur.addColorStop(1, 'rgba(255,214,110,0)');
+    ctx.fillStyle = aur;
+    ctx.beginPath(); ctx.arc(d.x, d.y - R * 0.3, R * 1.9, 0, 6.2832); ctx.fill();
+  }
+
   ctx.save();
   ctx.translate(d.x, d.y);
   ctx.rotate(d.ang);
@@ -943,9 +986,9 @@ function drawRabbit(){
 function drawVision(){
   // 视野画在草地上、在灌木和角色之前 —— 否则会给它们整体染上一层红/黄色
   var t = tiger;
-  // 视野：扇形（看得见的方向，±0.95rad / 380px）+ 虚线圆圈（近身"嗅觉" 108px）
+  // 视野：扇形（看得见的方向，±0.80rad / 280px）+ 虚线圆圈（近身"嗅觉" 90px）
   // 这两个数字必须和 update() 里 sees 的判定一致，否则玩家没法判断自己安不安全
-  var VIS = 380 * SZ, SMELL = 108 * SZ, HALF = 0.95;
+  var VIS = 280 * SZ, SMELL = 90 * SZ, HALF = 0.80;
   ctx.save();
   ctx.translate(t.x, t.y);
   ctx.setLineDash([7, 7]);
@@ -1369,6 +1412,7 @@ function gameOver(){
   el.newBest.hidden = !isNew;
   el.best.textContent = best;
   el.alert.classList.remove('on');
+  el.boost.classList.remove('on');
   var quips = [
     ['被抓住啦！', '虎口脱险失败…… 再来一次！'],
     ['机械老虎赢了这局', '差一点点，下次记得用冲刺拐弯。'],
