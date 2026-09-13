@@ -354,7 +354,7 @@ function buildField(){
 
 function mkTiger(x, y, ang){
   return { x: x, y: y, vx: 0, vy: 0, r: 30, ang: ang,
-           alert: false, alertT: 0, speed: 176, wp: null, legP: 0, seek: 0 };
+           alert: false, alertT: 0, speed: 176, wp: null, legP: 0, seek: 0, stuckT: 0 };
 }
 
 // 每关的灌木数量：第一关多放一些，方便躲；后面恢复常规密度
@@ -442,6 +442,25 @@ function spawnFood(kind, initial){
   var p = freeSpot((initial ? 150 : 190) * SZ, 70 * SZ);
   carrots.push({ x: p.x, y: p.y, ph: rand(0, 6.28), born: runT,
     kind: kind, rr: kind === 'cabbage' ? 24 : 21 });
+}
+
+// 给老虎挑巡逻航点：必须落在灌木外面 + 留出半个身位的余量，
+// 否则老虎被 pushOutOfBush 弹回来、永远到不了 46px 内的"已抵达"判定，
+// 航点就不会刷新，看起来像"卡住不动"
+function pickWaypoint(){
+  for (var i = 0; i < 16; i++){
+    var wx = rand(MARGIN + 60, W - MARGIN - 60);
+    var wy = rand(MARGIN + 60, H - MARGIN - 60);
+    var ok = true;
+    for (var j = 0; j < bushes.length; j++){
+      if (dist2(wx, wy, bushes[j].x, bushes[j].y) < Math.pow(bushes[j].r + 56, 2)){
+        ok = false; break;
+      }
+    }
+    if (ok) return { x: wx, y: wy };
+  }
+  // 找不到"干净"的点时退回随机——避免一直卡在同一个灌木边缘
+  return { x: rand(MARGIN + 60, W - MARGIN - 60), y: rand(MARGIN + 60, H - MARGIN - 60) };
 }
 
 /* ---------------- 输入 ---------------- */
@@ -572,8 +591,19 @@ function update(dt){
     rabbit.bob += dt * (6 + sp / 26);
   } else rabbit.bob += dt * 1.6;
 
-  if (rabbit.regenWait > 0) rabbit.regenWait -= dt;
-  else rabbit.stam = Math.min(100, rabbit.stam + STAM_REGEN * dt);
+  // 体力：加速状态（吃蔬菜触发）会持续消耗体力；体力耗尽则提前结束加速，
+  // 否则兔子只要一直捡胡萝卜就能无限保持全速奔跑
+  if (rabbit.boostT > 0){
+    rabbit.stam = Math.max(0, rabbit.stam - 30 * dt);
+    if (rabbit.stam <= 0){
+      rabbit.boostT = 0;
+      rabbit.regenWait = STAM_DELAY;
+    }
+  } else if (rabbit.regenWait > 0){
+    rabbit.regenWait -= dt;
+  } else {
+    rabbit.stam = Math.min(100, rabbit.stam + STAM_REGEN * dt);
+  }
   el.stamina.style.width = rabbit.stam.toFixed(1) + '%';
   el.stamina.classList.toggle('low', rabbit.stam < 32);
 
@@ -615,6 +645,9 @@ function update(dt){
       tiger.legP += dt * 3;
     } else {
 
+    // 记一下本帧起点；如果实际移动不到 8px，就当被灌木/边界卡住累计 stuckT
+    var px0 = tiger.x, py0 = tiger.y;
+
     tiger.speed = lerp(tiger.speed,
       (TIGER_BASE + Math.min(elapsed * TIGER_RAMP, TIGER_RAMP_MAX) + (tiger.alert ? 12 : -14)) * SZ,
       1 - Math.pow(0.02, dt));
@@ -625,8 +658,11 @@ function update(dt){
       goalX = rabbit.x + rabbit.vx * 0.22; goalY = rabbit.y + rabbit.vy * 0.22;
       speedMul = 1;
     } else {
-      if (!tiger.wp || dist2(tiger.x, tiger.y, tiger.wp.x, tiger.wp.y) < Math.pow(46, 2)){
-        tiger.wp = { x: rand(MARGIN + 60, W - MARGIN - 60), y: rand(MARGIN + 60, H - MARGIN - 60) };
+      // 抵达当前航点、或 1 秒没前进明显距离，就换一个新航点
+      // —— 不能只是"没到 46px"，否则被灌木弹回来时永远不刷新
+      if (!tiger.wp || dist2(tiger.x, tiger.y, tiger.wp.x, tiger.wp.y) < Math.pow(46, 2) || tiger.stuckT > 1.0){
+        tiger.wp = pickWaypoint();
+        tiger.stuckT = 0;
       }
       goalX = tiger.wp.x; goalY = tiger.wp.y; speedMul = 0.52;
     }
@@ -644,6 +680,10 @@ function update(dt){
     pushOutOfBush(tiger);
     bounds(tiger);
     tiger.legP += dt * (tiger.alert ? 15 : 8);
+
+    // 一帧实际位移 < 8px 就当卡住；超过 1 秒强制重选航点
+    if (dist2(tiger.x, tiger.y, px0, py0) < Math.pow(8, 2)) tiger.stuckT += dt;
+    else tiger.stuckT = 0;
     }
 
     // 排气烟
