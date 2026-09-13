@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>小游戏 · Small Games</title>
+<meta name="description" content="一个很小的小游戏合集：打开网页就能玩，不用下载、不用登录。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='88'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --ink:#22261f;
+    --ink-soft:#6a7263;
+    --line:rgba(34,38,31,.10);
+    --card:#ffffff;
+    --accent:#e0642f;
+    --accent2:#3f9e4d;
+    --font: ui-rounded, "SF Pro Rounded", "PingFang SC", "Hiragino Sans GB",
+            "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    --shadow: 0 14px 40px -18px rgba(30,50,25,.35);
+  }
+  *{ box-sizing:border-box; }
+  html{ color-scheme: light; }
+  body{
+    margin:0; font-family:var(--font); color:var(--ink);
+    background:
+      radial-gradient(80% 55% at 12% 0%, #eaf7dd 0%, rgba(234,247,221,0) 60%),
+      radial-gradient(70% 50% at 92% 4%, #fff2e2 0%, rgba(255,242,226,0) 55%),
+      #f7f9f4;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ width:min(1060px,100%); margin:0 auto; padding:clamp(28px,6vw,64px) clamp(16px,4vw,32px) 80px; }
+
+  header{ margin-bottom:clamp(24px,4vw,40px); }
+  .kicker{
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:11px; font-weight:800; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--accent2); background:rgba(63,158,77,.11); border-radius:999px; padding:6px 13px;
+  }
+  h1{
+    font-size:clamp(30px,6.4vw,48px); line-height:1.08; letter-spacing:-.025em;
+    margin:16px 0 10px;
+  }
+  h1 .em{ color:var(--accent); }
+  header p{ margin:0; color:var(--ink-soft); font-size:clamp(14px,2.6vw,16.5px); line-height:1.65; max-width:52ch; }
+
+  .grid{
+    display:grid; gap:clamp(16px,2.6vw,24px);
+    grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));
+    margin-top:clamp(26px,4vw,40px);
+  }
+
+  a.card{
+    display:flex; flex-direction:column; text-decoration:none; color:inherit;
+    background:var(--card); border:1px solid var(--line); border-radius:24px;
+    overflow:hidden; box-shadow:var(--shadow);
+    transition:transform .18s ease, box-shadow .18s ease;
+  }
+  a.card:hover{ transform:translateY(-4px); box-shadow:0 22px 50px -20px rgba(30,50,25,.45); }
+  a.card:active{ transform:translateY(-1px) scale(.995); }
+
+  .cover{ position:relative; aspect-ratio:16/10; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  .cover .sky{ position:absolute; inset:0; }
+  .cover .grass{ position:absolute; left:0; right:0; bottom:-2px; width:100%; display:block; }
+  .cover .actor{ position:relative; font-size:clamp(34px,8vw,46px); line-height:1; filter:drop-shadow(0 6px 10px rgba(0,0,0,.22)); }
+  .cover .mid{ position:relative; font-size:clamp(15px,3.6vw,19px); margin:0 6px 0 2px; opacity:.9; }
+  .badge{
+    position:absolute; top:12px; left:12px; z-index:2;
+    font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
+    background:rgba(255,255,255,.92); color:var(--accent); border-radius:999px; padding:5px 10px;
+  }
+
+  .body{ padding:16px 18px 18px; display:flex; flex-direction:column; gap:9px; flex:1; }
+  .title{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .title h2{ font-size:19px; margin:0; letter-spacing:-.01em; }
+  .title span{ font-size:11.5px; color:var(--ink-soft); font-weight:700; letter-spacing:.04em; }
+  .desc{ margin:0; font-size:13.5px; line-height:1.62; color:var(--ink-soft); flex:1; }
+  .tags{ display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
+  .tag{
+    font-size:11.5px; font-weight:700; color:var(--ink-soft);
+    border:1px solid var(--line); border-radius:999px; padding:4px 10px; background:#fbfcf9;
+  }
+  .go{
+    display:inline-flex; align-items:center; gap:6px; margin-top:4px;
+    font-size:13.5px; font-weight:800; color:var(--accent);
+  }
+  .go svg{ transition:transform .18s ease; }
+  a.card:hover .go svg{ transform:translateX(4px); }
+
+  .soon{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    border:1.5px dashed rgba(34,38,31,.18); border-radius:24px; color:var(--ink-soft);
+    background:rgba(255,255,255,.45); text-align:center; padding:30px 22px; min-height:200px;
+  }
+  .soon .big{ font-size:32px; }
+  .soon b{ color:var(--ink); font-size:15px; }
+  .soon p{ margin:0; font-size:13px; line-height:1.6; max-width:26ch; }
+
+  footer{ margin-top:clamp(34px,6vw,56px); font-size:12.5px; color:var(--ink-soft); line-height:1.8; }
+  footer a{ color:var(--accent2); }
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px;
+    background:rgba(34,38,31,.06); border-radius:6px; padding:2px 6px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="kicker">🎮 Small Games</span>
+    <h1>很小的<span class="em">小游戏</span></h1>
+    <p>打开网页就能玩，不用下载、不用登录。全部是单个 HTML 文件，手机和电脑都能玩 —— 每个游戏都在这个站里的一个子目录下。</p>
+  </header>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    <div>新游戏加在 <code>small-games/&lt;名字&gt;/index.html</code>，然后在首页的 <code>GAMES</code> 列表里加一条就行。</div>
+    <div>源码：<a href="https://github.com/ruoyus/small-games">github.com/ruoyus/small-games</a></div>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   游戏清单 —— 加新游戏只需要在下面 GAMES 里加一条：
+     slug : 子目录名（small-games/<slug>/index.html）
+     ...
+   封面用 emoji 就行（hero 里从左到右排）。
+   ============================================================ */
+var GAMES = [
+  {
+    slug: 'tiger-dog',
+    hero: ['🐯', '→', '🐶'],
+    sky: 'linear-gradient(135deg,#b7e86c 0%,#6fc23f 55%,#3f8c2c 100%)',
+    title: '机械老虎来啦！',
+    sub: 'Robo-Tiger Chase',
+    desc: '你是草地上的一只小狗。红色机械老虎有视野，被它看见就会全速追过来 —— 躲到灌木后面能挡住它的视线。吃到骨头才加分。',
+    tags: ['键盘 / 触屏', '单人', '躲避', '1–3 分钟'],
+    isNew: true
+  }
+];
+
+function coverHTML(g){
+  return '<div class="cover">' +
+      '<div class="sky" style="background:' + g.sky + '"></div>' +
+      '<svg class="grass" viewBox="0 0 320 60" preserveAspectRatio="none" aria-hidden="true">' +
+        '<path d="M0 26 Q60 6 120 24 T240 20 T320 30 L320 60 L0 60 Z" fill="rgba(35,105,30,.30)"/>' +
+        '<path d="M0 40 Q70 22 140 38 T280 34 T320 42 L320 60 L0 60 Z" fill="rgba(28,86,24,.38)"/>' +
+      '</svg>' +
+      (g.isNew ? '<span class="badge">New</span>' : '') +
+      g.hero.map(function(h, i){
+        return i === 1 ? '<span class="mid">' + h + '</span>' : '<span class="actor">' + h + '</span>';
+      }).join('') +
+    '</div>';
+}
+
+function cardHTML(g){
+  return '<a class="card" href="./' + g.slug + '/">' +
+      coverHTML(g) +
+      '<div class="body">' +
+        '<div class="title"><h2>' + g.title + '</h2><span>' + g.sub + '</span></div>' +
+        '<p class="desc">' + g.desc + '</p>' +
+        '<div class="tags">' + g.tags.map(function(t){ return '<span class="tag">' + t + '</span>'; }).join('') + '</div>' +
+        '<span class="go">开始玩 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 5l7 7-7 7"/></svg></span>' +
+      '</div>' +
+    '</a>';
+}
+
+var grid = document.getElementById('grid');
+grid.innerHTML = GAMES.map(cardHTML).join('') +
+  '<div class="soon">' +
+    '<span class="big">🚧</span>' +
+    '<b>更多小游戏在路上</b>' +
+    '<p>这个站就是给它准备的，做新的就直接放进来。</p>' +
+  '</div>';
+</script>
+</body>
+</html>
