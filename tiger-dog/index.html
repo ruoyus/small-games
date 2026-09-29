@@ -50,16 +50,14 @@
   }
   #staminaFill.low{ background:linear-gradient(90deg,#d94a3a,#f0a03a); }
   .tiny{ font-size:12px; font-weight:700; color:var(--ink-soft); }
-  #alertTag{
-    background:rgba(214,58,32,.94); color:#fff; border-color:transparent;
-    opacity:0; transform:translateY(-6px) scale(.94); transition:.18s ease;
-  }
-  #alertTag.on{ opacity:1; transform:none; }
-  #hideTag{
-    background:rgba(47,122,60,.92); color:#fff; border-color:transparent;
-    opacity:0; transform:translateY(-6px) scale(.94); transition:.18s ease;
-  }
-  #hideTag.on{ opacity:1; transform:none; }
+  /* 隐身状态药丸：常驻显示（不淡入淡出），玩家随时知道自己安不安全 */
+  #stealthPill{ transition:background .2s ease; }
+  #stealthPill .tiny{ color:#fff; }
+  #stealthPill.st-hide{ background:rgba(47,143,78,.94); border-color:transparent; }
+  #stealthPill.st-open{ background:rgba(207,122,44,.94); border-color:transparent; }
+  #stealthPill.st-seen{ background:rgba(214,58,32,.94); border-color:transparent; }
+  #stealthPill.st-wait{ background:var(--card); }
+  #stealthPill.st-wait .tiny{ color:var(--ink-soft); }
   #boostTag{
     background:linear-gradient(180deg,#ffb43c,#e0892f); color:#fff; border-color:transparent;
     opacity:0; transform:translateY(-6px) scale(.94); transition:.18s ease;
@@ -129,6 +127,10 @@
     transition:transform .12s;
   }
   button.cta:active{ transform:translateY(2px) scale(.98); }
+  button.cta.ghost{
+    background:transparent; color:var(--ink-soft); border:1.5px solid var(--line);
+    box-shadow:none; font-size:14px; padding:11px 26px;
+  }
   .scoreRow{ display:flex; gap:10px; justify-content:center; margin:6px 0 20px; }
   .scoreBox{
     flex:1; max-width:150px; border:1px solid var(--line); border-radius:18px;
@@ -157,8 +159,7 @@
       <div class="pill"><span class="lbl">最佳</span><span class="val" id="bestV">0</span></div>
     </div>
     <div class="stack right">
-      <div class="pill" id="alertTag"><span class="tiny" style="color:#fff">⚠ 被发现了！快跑！</span></div>
-      <div class="pill" id="hideTag"><span class="tiny" style="color:#fff">🌿 躲好了，它看不见你</span></div>
+      <div class="pill st-wait" id="stealthPill"><span class="tiny" id="stealthTxt">⏳ 准备…</span></div>
       <div class="pill" id="boostTag"><span class="tiny" style="color:#fff">⚡ 能量满满，加速中！</span></div>
       <div class="pill" id="staminaWrap">
         <div style="flex:1">
@@ -190,7 +191,7 @@
       <span class="chip"><i>🐯🐯</i> 第 3 关有两只老虎</span>
       <span class="chip"><i>🎯</i> 200 分升第 2 关，500 分升第 3 关</span>
       <span class="chip"><i>⚡</i> 空格冲刺逃命</span>
-      <span class="chip"><i>🌳</i> 躲进灌木丛可隐身</span>
+      <span class="chip"><i>🌳</i> 躲进灌木丛隐身，右上角会显示状态</span>
     </div>
     <div class="keys">
       <span class="key"><b>WASD</b> / <b>方向键</b> 移动</span>
@@ -215,6 +216,7 @@
     </div>
     <div class="newbest" id="newBest" hidden>🎉 新纪录！</div>
     <button class="cta" id="againBtn">再玩一次</button>
+    <div style="margin-top:12px"><button class="cta ghost" id="restartBtn">从第 1 关重新开始</button></div>
     <p class="foot">按 <b>R</b> 也可以马上重来</p>
   </div>
 </div>
@@ -237,8 +239,10 @@ var el = {
   level: document.getElementById('levelV'),
   time:  document.getElementById('timeV'),
   stamina: document.getElementById('staminaFill'),
-  alert: document.getElementById('alertTag'),
-  hide:  document.getElementById('hideTag'),
+  stealth: document.getElementById('stealthPill'),
+  stealthTxt: document.getElementById('stealthTxt'),
+  again:  document.getElementById('againBtn'),
+  restart: document.getElementById('restartBtn'),
   boost: document.getElementById('boostTag'),
   start: document.getElementById('startScreen'),
   over:  document.getElementById('overScreen'),
@@ -318,6 +322,9 @@ var score = 0, carrotCount = 0, elapsed = 0, best = 0, shake = 0, catchT = 0, fl
 var lastT = 0, runT = 0, graceT = 0;
 // 关卡：1=灌木多只有胡萝卜；200分→2=白菜登场；500分→3=两只老虎
 var level = 1, levelUpT = 0;
+var stealthCode = -1;
+var STEALTH_CLS = ['st-hide','st-open','st-seen','st-wait'];
+var STEALTH_TXT = ['🌿 隐身中 · 它看不见你','👀 暴露中 · 快找灌木','⚠ 被发现了！快跑！','⏳ 准备…'];
 var LEVEL2_AT = 200, LEVEL3_AT = 500;
 
 try { best = parseInt(localStorage.getItem('roboTigerBest2') || '0', 10) || 0; } catch(e){ best = 0; }
@@ -402,15 +409,23 @@ function setupLevel(){
   puffs = []; sparks = [];
 }
 
-function resetWorld(){
-  level = 1; levelUpT = 0;
+// 每一关的起始分数：从这一关重来时，分数回到该关的门槛值
+function levelStartScore(n){
+  if (n >= 3) return LEVEL3_AT;
+  if (n === 2) return LEVEL2_AT;
+  return 0;
+}
+
+function resetWorld(startLevel){
+  level = clamp(startLevel || 1, 1, 3); levelUpT = 0;
   setupLevel();
-  score = 0; carrotCount = 0; elapsed = 0; shake = 0; catchT = 0; flash = 0; runT = 0;
-  el.score.textContent = '0';
+  score = levelStartScore(level);
+  carrotCount = 0; elapsed = 0; shake = 0; catchT = 0; flash = 0; runT = 0;
+  el.score.textContent = String(Math.floor(score));
   el.time.textContent = '0.0';
-  el.level.textContent = '1';
+  el.level.textContent = String(level);
   el.stamina.style.width = '100%';
-  el.alert.classList.remove('on');
+  stealthCode = -1;
   el.boost.classList.remove('on');
 }
 
@@ -474,7 +489,7 @@ window.addEventListener('keydown', function(e){
   keys[k] = true;
   if (k === ' ' || k === 'spacebar') tryDash();
   if (k === 'p' || k === 'escape') togglePause();
-  if (k === 'r' && state !== 'menu') startGame();
+  if (k === 'r' && state !== 'menu') startGame(level);
   if (k === 'm') toggleMute();
 });
 window.addEventListener('keyup', function(e){ keys[e.key.toLowerCase()] = false; });
@@ -703,8 +718,13 @@ function update(dt){
   if (anyAlert) flash = Math.min(1, flash + dt * 3); else flash = Math.max(0, flash - dt * 2);
 
   // 两个提示互斥：对所有老虎都藏好了才显示绿色；任何一只看见就显示红色
-  el.alert.classList.toggle('on', anyAlert && !allHidden);
-  el.hide.classList.toggle('on', allHidden && !frozen);
+  // 隐身状态药丸：常驻右上角，四个状态一眼看清
+  var stCode = frozen ? 3 : (allHidden ? 0 : (anyAlert ? 2 : 1));
+  if (stCode !== stealthCode){
+    stealthCode = stCode;
+    el.stealth.className = 'pill ' + STEALTH_CLS[stCode];
+    el.stealthTxt.textContent = STEALTH_TXT[stCode];
+  }
   el.boost.classList.toggle('on', rabbit.boostT > 0);
 
   /* ---- 食物（胡萝卜 +10 / 白菜 +25） ---- */
@@ -1559,10 +1579,10 @@ function advanceLevel(n){
   setTimeout(function(){ tone(990, .14, 'sine', .12, 1320); }, 130);
 }
 
-function startGame(){
+function startGame(startLevel){
   audio();
   resize();
-  resetWorld();
+  resetWorld(startLevel || 1);
   graceT = 2.9;
   state = 'playing';
   el.start.hidden = true;
@@ -1586,8 +1606,12 @@ function gameOver(){
   el.finalBones.textContent = carrotCount;
   el.newBest.hidden = !isNew;
   el.best.textContent = best;
-  el.alert.classList.remove('on');
+  stealthCode = -1;
+  el.stealth.className = 'pill st-wait';
+  el.stealthTxt.textContent = '⏳ 准备…';
   el.boost.classList.remove('on');
+  el.again.textContent = '从第 ' + level + ' 关再来';
+  el.restart.hidden = (level === 1);
   var quips = [
     ['被抓住啦！', '虎口脱险失败…… 再来一次！'],
     ['机械老虎赢了这局', '差一点点，下次记得用冲刺拐弯。'],
@@ -1601,7 +1625,7 @@ function gameOver(){
 }
 function togglePause(){
   if (state === 'playing'){
-    state = 'paused'; el.alert.classList.remove('on');
+    state = 'paused';
   } else if (state === 'paused'){
     state = 'playing'; lastT = performance.now();
   }
@@ -1613,8 +1637,9 @@ function toggleMute(){
   if (sound.on) tone(660, .08, 'sine', .1);
 }
 
-el.start.querySelector('#playBtn').addEventListener('click', startGame);
-document.getElementById('againBtn').addEventListener('click', startGame);
+el.start.querySelector('#playBtn').addEventListener('click', function(){ startGame(1); });
+el.again.addEventListener('click', function(){ startGame(level); });      // 从死的那一关继续
+el.restart.addEventListener('click', function(){ startGame(1); });        // 彻底从第一关重来
 el.mute.addEventListener('click', toggleMute);
 el.fs.addEventListener('click', function(){
   if (!document.fullscreenElement){
