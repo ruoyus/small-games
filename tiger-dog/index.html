@@ -39,9 +39,10 @@
   .stack{ display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
   .stack.right{ align-items:flex-end; }
 
-  #staminaWrap{ width:clamp(120px,26vw,190px); }
+  #staminaWrap{ width:clamp(130px,28vw,205px); }
   #staminaBar{
     height:9px; border-radius:999px; background:rgba(43,47,38,.14); overflow:hidden; margin-top:8px;
+    position:relative;
   }
   #staminaFill{
     height:100%; width:100%; border-radius:999px;
@@ -49,6 +50,13 @@
     transition:background .2s;
   }
   #staminaFill.low{ background:linear-gradient(90deg,#d94a3a,#f0a03a); }
+  #staminaFill.out{ background:linear-gradient(90deg,#8e2318,#d13a2a); }
+  /* 体力恢复到这条线以上才解除"疲劳"，画出来避免玩家以为回一点点就满速了 */
+  #staminaMark{
+    position:absolute; left:25%; top:-2px; width:2px; height:13px; border-radius:2px;
+    background:rgba(43,47,38,.45); pointer-events:none;
+  }
+  #staminaLbl.tired{ color:#c0392b; }
   .tiny{ font-size:12px; font-weight:700; color:var(--ink-soft); }
   /* 隐身状态药丸：常驻显示（不淡入淡出），玩家随时知道自己安不安全 */
   #stealthPill{ transition:background .2s ease; }
@@ -146,6 +154,13 @@
     background:rgba(255,255,255,.7); color:var(--ink-soft);
   }
   .chip i{ font-style:normal; }
+  /* 体力 / 隐身 的规则说明：把"几个原则"直接写在开始页上 */
+  .rules{
+    text-align:left; background:rgba(255,255,255,.62); border:1px solid var(--line);
+    border-radius:14px; padding:11px 14px; margin:0 0 16px; display:flex; flex-direction:column; gap:6px;
+  }
+  .rule{ font-size:12.5px; line-height:1.5; color:var(--ink-soft); }
+  .rule b{ color:var(--ink); }
 </style>
 </head>
 <body>
@@ -160,11 +175,11 @@
     </div>
     <div class="stack right">
       <div class="pill st-wait" id="stealthPill"><span class="tiny" id="stealthTxt">⏳ 准备…</span></div>
-      <div class="pill" id="boostTag"><span class="tiny" style="color:#fff">⚡ 能量满满，加速中！</span></div>
+      <div class="pill" id="boostTag"><span class="tiny" style="color:#fff">⚡ 加速中 · 体力掉得更快</span></div>
       <div class="pill" id="staminaWrap">
         <div style="flex:1">
-          <div class="lbl" style="font-size:10px">体力 DASH</div>
-          <div id="staminaBar"><div id="staminaFill"></div></div>
+          <div class="lbl" style="font-size:10px" id="staminaLbl">体力 · 跑就掉，站住回</div>
+          <div id="staminaBar"><div id="staminaFill"></div><div id="staminaMark"></div></div>
         </div>
       </div>
       <div class="pill"><span class="lbl">时间</span><span class="val" id="timeV">0.0</span></div>
@@ -186,12 +201,17 @@
     <h1>机械老虎<span class="em">来啦</span>！</h1>
     <p class="sub">你是草地上的一只小兔子 🐰<br>躲开机械老虎 🐯，<b>吃蔬菜才加分</b>，共三关。</p>
     <div class="pair">
-      <span class="chip"><i>🥕</i> 胡萝卜 +10 分，还会加速一会儿</span>
-      <span class="chip"><i>🥬</i> 第 2 关白菜登场，一颗 +25 分</span>
+      <span class="chip"><i>🥕</i> 胡萝卜 +10 分</span>
+      <span class="chip"><i>🥬</i> 第 2 关白菜 +25 分</span>
       <span class="chip"><i>🐯🐯</i> 第 3 关有两只老虎</span>
-      <span class="chip"><i>🎯</i> 200 分升第 2 关，500 分升第 3 关</span>
-      <span class="chip"><i>⚡</i> 空格冲刺逃命</span>
-      <span class="chip"><i>🌳</i> 躲进灌木丛隐身，右上角会显示状态</span>
+      <span class="chip"><i>🎯</i> 200 分升 2 关，500 分升 3 关</span>
+      <span class="chip"><i>⚡</i> 空格冲刺（花 30 体力）</span>
+    </div>
+    <div class="rules">
+      <div class="rule"><b>🔋 体力</b>：一跑就慢慢往下降；降到 0 就<b>累了</b>，速度只剩七成。</div>
+      <div class="rule"><b>😴 休息</b>：站着不动会慢慢回升，大约 5 秒回满（比吃东西慢）。</div>
+      <div class="rule"><b>🥕 吃菜</b>：胡萝卜 <b>+50</b>、白菜 <b>+80</b>，体力<b>立刻</b>回一大截，还能加速 2.6 秒。</div>
+      <div class="rule"><b>🌿 隐身</b>：躲进灌木就隐身 <b>8 秒</b>；离开灌木开始倒计时，走完就暴露。靠老虎太近（嗅觉圈）会被闻出来。</div>
     </div>
     <div class="keys">
       <span class="key"><b>WASD</b> / <b>方向键</b> 移动</span>
@@ -239,6 +259,7 @@ var el = {
   level: document.getElementById('levelV'),
   time:  document.getElementById('timeV'),
   stamina: document.getElementById('staminaFill'),
+  staminaLbl: document.getElementById('staminaLbl'),
   stealth: document.getElementById('stealthPill'),
   stealthTxt: document.getElementById('stealthTxt'),
   again:  document.getElementById('againBtn'),
@@ -317,21 +338,41 @@ function noise(dur, vol, hp){
 /* ---------------- 世界 ---------------- */
 var MARGIN = 26;                    // 栅栏内边距
 var state = 'menu';                 // menu | playing | over | paused
-var rabbit, tigers = [], carrots = [], bushes = [], flowers = [], tufts = [], puffs = [], sparks = [];
+var rabbit, tigers = [], carrots = [], bushes = [], flowers = [], tufts = [], puffs = [], sparks = [], floaters = [];
+// 飘字：吃到蔬菜时飘出"体力 +50"，把恢复规则直接演出来
+function addFloat(x, y, text, color){
+  floaters.push({ x: x, y: y, t: 0, life: 1.15, text: text, c: color || '#fff' });
+}
 var score = 0, carrotCount = 0, elapsed = 0, best = 0, shake = 0, catchT = 0, flash = 0;
 var lastT = 0, runT = 0, graceT = 0;
 // 关卡：1=灌木多只有胡萝卜；200分→2=白菜登场；500分→3=两只老虎
 var level = 1, levelUpT = 0;
-var stealthCode = -1;
+var stealthCode = -1, stealthTxtCache = '';
+var stealthT = 0;                   // 隐身剩余秒数（>0 即隐身中，右上角显示倒计时）
+var STEALTH_TIME = 8;               // 隐身时长：躲进灌木就回满，离开灌木开始倒计时
 var STEALTH_CLS = ['st-hide','st-open','st-seen','st-wait'];
 var STEALTH_TXT = ['🌿 隐身中 · 它看不见你','👀 暴露中 · 快找灌木','⚠ 被发现了！快跑！','⏳ 准备…'];
 var LEVEL2_AT = 200, LEVEL3_AT = 500;
+
+/* ---------- 体力：三条原则，一目了然 ----------
+   1) 跑 → 体力匀速下降；加速跑掉得更快
+   2) 体力见底 → 进入"疲劳"，速度降到七成；回到 25 以上才解除
+   3) 恢复分两档：吃蔬菜立刻回一大截（快），站着不动慢慢回（慢）
+   ------------------------------------------------ */
+var STAM_MAX = 100;
+var STAM_RUN_DRAIN = 6;             // 正常跑：每秒 -6（约 17 秒跑光）
+var STAM_BOOST_DRAIN = 14;          // 加速跑：每秒 -14
+var STAM_REST_REGEN = 20;           // 站着不动：每秒 +20（5 秒回满，比吃菜慢）
+var STAM_REST_DELAY = 0.25;         // 停下 0.25 秒后才开始回，避免点一下就回
+var STAM_FOOD = { carrot: 50, cabbage: 80 };   // 吃蔬菜：立刻 +50 / +80
+var TIRED_MUL = 0.7;                // 疲劳时的速度倍率
+var TIRED_EXIT = 25;                // 回到 25 以上才解除疲劳（避免在 0 附近来回闪）
 
 try { best = parseInt(localStorage.getItem('roboTigerBest2') || '0', 10) || 0; } catch(e){ best = 0; }
 el.best.textContent = best;
 
 var RABBIT_SPEED = 240, RABBIT_ACCEL = 1500;
-var DASH_SPEED = 500, DASH_TIME = 0.30, DASH_COST = 30, STAM_REGEN = 22, STAM_DELAY = 0.5;
+var DASH_SPEED = 500, DASH_TIME = 0.30, DASH_COST = 30;
 // 吃到蔬菜后的短暂加速
 var BOOST_TIME = 2.6, BOOST_MUL = 1.34;
 // 场地越大，角色绝对速度越快；小屏（手机）按比例放慢，保证"每秒能跑过几屏"的体感一致
@@ -385,7 +426,8 @@ function countFood(kind){
 // 搭建当前关卡的地形与角色（不动 score / elapsed 等跨关统计）
 function setupLevel(){
   rabbit = { x: W * 0.5, y: H * 0.68, vx: 0, vy: 0, r: 17, ang: -Math.PI / 2,
-          stam: 100, dashT: 0, regenWait: 0, bob: 0, face: 1, boostT: 0 };
+          stam: STAM_MAX, tired: false, restT: 0, dashT: 0, bob: 0, face: 1, boostT: 0 };
+  stealthT = 0;
   tigers = [ mkTiger(W * 0.5, MARGIN + 70, Math.PI / 2) ];
   if (level >= 3) tigers.push(mkTiger(W - MARGIN - 90, H * 0.30, Math.PI));
   carrots = []; bushes = [];
@@ -406,7 +448,7 @@ function setupLevel(){
   var fc = foodCounts();
   for (var i = 0; i < fc.carrot; i++) spawnFood('carrot', true);
   for (var j = 0; j < fc.cabbage; j++) spawnFood('cabbage', true);
-  puffs = []; sparks = [];
+  puffs = []; sparks = []; floaters = [];
 }
 
 // 每一关的起始分数：从这一关重来时，分数回到该关的门槛值
@@ -429,8 +471,15 @@ function resetWorld(startLevel){
   el.time.textContent = '0.0';
   el.level.textContent = String(level);
   el.stamina.style.width = '100%';
-  stealthCode = -1;
+  setStaminaLabel(false);
+  stealthCode = -1; stealthTxtCache = ''; stealthT = 0;
   el.boost.classList.remove('on');
+}
+
+// 体力条上的一行字：正常 / 疲劳，直接把当前规则说出来
+function setStaminaLabel(tired){
+  el.staminaLbl.textContent = tired ? '😪 体力耗尽 · 速度变慢了！' : '体力 · 跑就掉，站住回';
+  el.staminaLbl.classList.toggle('tired', !!tired);
 }
 
 /* 让小狗出生点附近别被灌木堵死 */
@@ -529,7 +578,7 @@ cv.addEventListener('pointercancel', endStick);
 function tryDash(){
   if (state !== 'playing') return;
   if (rabbit.stam < DASH_COST || rabbit.dashT > 0) return;
-  rabbit.stam -= DASH_COST; rabbit.dashT = DASH_TIME; rabbit.regenWait = 0;
+  rabbit.stam -= DASH_COST; rabbit.dashT = DASH_TIME; rabbit.restT = 0;
   noise(0.22, 0.1, 900);
   for (var i = 0; i < 10; i++){
     puffs.push({ x: rabbit.x, y: rabbit.y + 8, vx: rand(-90, 90) - rabbit.vx * .2, vy: rand(-60, 10),
@@ -592,7 +641,9 @@ function update(dt){
   if (rabbit.dashT > 0) rabbit.dashT -= dt;
   if (rabbit.boostT > 0) rabbit.boostT -= dt;
   var boosted = rabbit.boostT > 0;
-  var targetSpeed = rabbit.dashT > 0 ? DASH_SPEED : RABBIT_SPEED * (boosted ? BOOST_MUL : 1);
+  // 体力见底 → "疲劳"，速度只剩七成；加速 / 冲刺都盖不住这个惩罚
+  var targetSpeed = rabbit.dashT > 0 ? DASH_SPEED * (rabbit.tired ? 0.82 : 1)
+                  : RABBIT_SPEED * (rabbit.tired ? TIRED_MUL : 1) * (boosted ? BOOST_MUL : 1);
   var tvx = ax * targetSpeed, tvy = ay * targetSpeed;
   var k = clamp(RABBIT_ACCEL * dt / Math.max(targetSpeed, 1), 0, 1);
   if (rabbit.dashT > 0) k = 1;
@@ -610,21 +661,24 @@ function update(dt){
     rabbit.bob += dt * (6 + sp / 26);
   } else rabbit.bob += dt * 1.6;
 
-  // 体力：加速状态（吃蔬菜触发）会持续消耗体力；体力耗尽则提前结束加速，
-  // 否则兔子只要一直捡胡萝卜就能无限保持全速奔跑
-  if (rabbit.boostT > 0){
-    rabbit.stam = Math.max(0, rabbit.stam - 30 * dt);
-    if (rabbit.stam <= 0){
-      rabbit.boostT = 0;
-      rabbit.regenWait = STAM_DELAY;
-    }
-  } else if (rabbit.regenWait > 0){
-    rabbit.regenWait -= dt;
+  /* ---- 体力 ----
+     跑动就掉（加速掉得更快）；站着不动慢慢回；吃到蔬菜立刻回一大截。
+     掉到 0 进入"疲劳"（速度 ×0.7），要回到 25 以上才解除，避免在 0 附近来回闪。 */
+  if (sp > 20){
+    rabbit.restT = 0;
+    rabbit.stam = Math.max(0, rabbit.stam - (boosted ? STAM_BOOST_DRAIN : STAM_RUN_DRAIN) * dt);
   } else {
-    rabbit.stam = Math.min(100, rabbit.stam + STAM_REGEN * dt);
+    rabbit.restT += dt;
+    if (rabbit.restT > STAM_REST_DELAY)
+      rabbit.stam = Math.min(STAM_MAX, rabbit.stam + STAM_REST_REGEN * dt);
   }
+  var wasTired = rabbit.tired;
+  if (rabbit.stam <= 0.5) rabbit.tired = true;
+  else if (rabbit.stam >= TIRED_EXIT) rabbit.tired = false;
+  if (rabbit.tired !== wasTired) setStaminaLabel(rabbit.tired);
   el.stamina.style.width = rabbit.stam.toFixed(1) + '%';
-  el.stamina.classList.toggle('low', rabbit.stam < 32);
+  el.stamina.classList.toggle('low', !rabbit.tired && rabbit.stam < 32);
+  el.stamina.classList.toggle('out', rabbit.tired);
 
   if (rabbit.dashT > 0 && Math.random() < 0.55){
     puffs.push({ x: rabbit.x - rabbit.vx * .02, y: rabbit.y + 7, vx: rand(-40, 40) - rabbit.vx * .12,
@@ -641,7 +695,7 @@ function update(dt){
   // 开场/升级倒计时：老虎原地待机，先给玩家一点反应时间
   var frozen = graceT > 0;
   if (frozen) graceT -= dt;
-  var anyAlert = false, allHidden = true;
+  var anyAlert = false, allHidden = true, smellBreak = false;
 
   for (var ti = 0; ti < tigers.length; ti++){
     var tiger = tigers[ti];
@@ -650,8 +704,12 @@ function update(dt){
     var facing = Math.abs(norm(toDog - tiger.ang));
     var hidden = hug || segBlocked(tiger.x, tiger.y, rabbit.x, rabbit.y);
     if (!hidden) allHidden = false;
+    // 隐身 = 被灌木挡住，或隐身倒计时还没走完；但贴进"嗅觉圈"会被闻出来
+    var tooClose = d < 90 * SZ;
+    var invisible = hidden || (stealthT > 0 && !tooClose);
+    if (stealthT > 0 && !hidden && tooClose) smellBreak = true;
     // 视野收窄：扇形 280px / ±0.80rad，近身嗅觉 90px —— 380/0.95 时玩家几乎无处可逃
-    var sees = (d < 90 * SZ && !hidden) || (d < 280 * SZ && facing < 0.80 && !hidden);
+    var sees = !invisible && (d < 90 * SZ || (d < 280 * SZ && facing < 0.80));
 
     if (sees){ tiger.alert = true; tiger.alertT = 1.1; }
     else if (tiger.alertT > 0) tiger.alertT -= dt;
@@ -721,14 +779,22 @@ function update(dt){
 
   if (anyAlert) flash = Math.min(1, flash + dt * 3); else flash = Math.max(0, flash - dt * 2);
 
-  // 两个提示互斥：对所有老虎都藏好了才显示绿色；任何一只看见就显示红色
-  // 隐身状态药丸：常驻右上角，四个状态一眼看清
-  var stCode = frozen ? 3 : (allHidden ? 0 : (anyAlert ? 2 : 1));
+  /* ---- 隐身倒计时 ----
+     躲进灌木 → 立刻回满 8 秒（一直待着就一直是满的）；
+     离开灌木 → 倒计时开始走；走完就暴露。靠老虎太近被闻到 → 立刻中断。 */
+  if (frozen) stealthT = 0;
+  else if (allHidden) stealthT = STEALTH_TIME;
+  else if (stealthT > 0) stealthT = smellBreak ? 0 : Math.max(0, stealthT - dt);
+
+  // 隐身状态药丸：常驻右上角，四个状态一眼看清；隐身时直接显示剩余秒数
+  var stCode = frozen ? 3 : (stealthT > 0 ? 0 : (anyAlert ? 2 : 1));
+  var stTxt = STEALTH_TXT[stCode];
+  if (stCode === 0) stTxt = '🌿 隐身 ' + stealthT.toFixed(1) + 's · 它看不见你';
   if (stCode !== stealthCode){
     stealthCode = stCode;
     el.stealth.className = 'pill ' + STEALTH_CLS[stCode];
-    el.stealthTxt.textContent = STEALTH_TXT[stCode];
   }
+  if (stTxt !== stealthTxtCache){ stealthTxtCache = stTxt; el.stealthTxt.textContent = stTxt; }
   el.boost.classList.toggle('on', rabbit.boostT > 0);
 
   /* ---- 食物（胡萝卜 +10 / 白菜 +25） ---- */
@@ -738,6 +804,12 @@ function update(dt){
     if (dist2(b.x, b.y, rabbit.x, rabbit.y) < Math.pow(rabbit.r + b.rr, 2)){
       carrots.splice(i, 1);
       carrotCount++; score += (b.kind === 'cabbage' ? 25 : 10);
+      // 吃蔬菜 → 体力立刻回一大截（比站着休息快得多）；顺便短暂加速
+      var gain = b.kind === 'cabbage' ? STAM_FOOD.cabbage : STAM_FOOD.carrot;
+      var before = rabbit.stam;
+      rabbit.stam = Math.min(STAM_MAX, rabbit.stam + gain);
+      if (rabbit.stam >= TIRED_EXIT) rabbit.tired = false;
+      addFloat(b.x, b.y - 18, '体力 +' + Math.round(rabbit.stam - before), '#ffe9a8');
       rabbit.boostT = BOOST_TIME;      // 吃蔬菜 → 短暂加速
       if (b.kind === 'cabbage'){
         tone(660, .09, 'triangle', .14); setTimeout(function(){ tone(990, .1, 'triangle', .12); }, 70);
@@ -773,6 +845,11 @@ function update(dt){
     var s2 = sparks[si];
     s2.life -= dt; s2.x += s2.vx * dt; s2.y += s2.vy * dt; s2.vy += 260 * dt;
     if (s2.life <= 0) sparks.splice(si, 1);
+  }
+  for (var fl = floaters.length - 1; fl >= 0; fl--){
+    var f2 = floaters[fl];
+    f2.t += dt; f2.y -= dt * 30;
+    if (f2.t >= f2.life) floaters.splice(fl, 1);
   }
 
   /* ---- 计时（分数只在吃蔬菜时增加，见上面食物那一段） ---- */
@@ -1051,10 +1128,13 @@ function drawRabbit(){
     ctx.beginPath(); ctx.arc(d.x, d.y - R * 0.3, R * 1.9, 0, 6.2832); ctx.fill();
   }
 
+  var ghost = stealthT > 0;           // 隐身中：整只兔子半透明（一眼看出"它看不见我"）
+
   ctx.save();
   ctx.translate(d.x, d.y);
   ctx.rotate(d.ang);
   if (Math.cos(d.ang) < 0) ctx.scale(1, -1);
+  if (ghost) ctx.globalAlpha = 0.55;
 
   // 兔子是蹦着走的，弹跳比狗明显一点
   var bounce = moving ? Math.abs(Math.sin(d.bob * 3.1)) * 3.4 : Math.sin(d.bob) * 0.8;
@@ -1148,6 +1228,23 @@ function drawRabbit(){
   ctx.restore();
 
   ctx.restore();
+
+  // 隐身倒计时环：绕在兔子身上的一圈绿色弧，走完就暴露
+  if (ghost){
+    var rr = R * 1.75;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,255,255,.42)';
+    ctx.beginPath(); ctx.arc(d.x, d.y - R * 0.15, rr, 0, 6.2832); ctx.stroke();
+    ctx.lineWidth = 3.6;
+    ctx.strokeStyle = 'rgba(126,224,158,.95)';
+    ctx.beginPath();
+    ctx.arc(d.x, d.y - R * 0.15, rr, -Math.PI / 2,
+            -Math.PI / 2 + 6.2832 * clamp(stealthT / STEALTH_TIME, 0, 1));
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 
@@ -1446,6 +1543,22 @@ function drawParticles(){
   ctx.globalAlpha = 1;
 }
 
+function drawFloaters(){
+  if (!floaters.length) return;
+  ctx.save();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '800 17px ui-rounded, system-ui, sans-serif';
+  for (var i = 0; i < floaters.length; i++){
+    var f = floaters[i];
+    ctx.globalAlpha = clamp(1 - f.t / f.life, 0, 1);
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(40,60,25,.55)'; ctx.lineJoin = 'round';
+    ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.c;
+    ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.restore();
+}
+
 function drawStick(){
   if (!stick.active) return;
   var dx = stick.x - stick.ox, dy = stick.y - stick.oy;
@@ -1479,6 +1592,7 @@ function render(){
   drawRabbit();
   for (var gi = 0; gi < tigers.length; gi++) drawTiger(tigers[gi]);
   drawParticles();
+  drawFloaters();
   drawStick();
   ctx.restore();
   drawVignette();
@@ -1611,7 +1725,7 @@ function gameOver(){
   el.finalBones.textContent = carrotCount;
   el.newBest.hidden = !isNew;
   el.best.textContent = best;
-  stealthCode = -1;
+  stealthCode = -1; stealthTxtCache = ''; stealthT = 0;
   el.stealth.className = 'pill st-wait';
   el.stealthTxt.textContent = '⏳ 准备…';
   el.boost.classList.remove('on');
