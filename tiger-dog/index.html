@@ -418,9 +418,13 @@ function levelStartScore(n){
 
 function resetWorld(startLevel){
   level = clamp(startLevel || 1, 1, 3); levelUpT = 0;
+  // runT 必须在 setupLevel() 之前归零：食物把 born 记成当时的 runT，
+  // 若带着上一局的 runT（比如 30s）再归零，弹出动画 pop=(runT-born)*5 会一直是 0，
+  // 胡萝卜要等 30 秒才现身。
+  runT = 0;
   setupLevel();
   score = levelStartScore(level);
-  carrotCount = 0; elapsed = 0; shake = 0; catchT = 0; flash = 0; runT = 0;
+  carrotCount = 0; elapsed = 0; shake = 0; catchT = 0; flash = 0;
   el.score.textContent = String(Math.floor(score));
   el.time.textContent = '0.0';
   el.level.textContent = String(level);
@@ -920,7 +924,8 @@ function drawCarrots(){
   for (var i = 0; i < carrots.length; i++){
     var c = carrots[i];
     var bob = Math.sin(c.ph) * 3;
-    var pop = clamp((runT - c.born) * 5, 0, 1);
+    // born 若意外大于当前 runT，别让食物隐形——直接按长成算
+    var pop = runT >= c.born ? clamp((runT - c.born) * 5, 0, 1) : 1;
     if (c.kind === 'cabbage') drawCabbage(c.x, c.y + bob, pop, c.ph);
     else drawCarrotItem(c.x, c.y + bob, pop);
   }
