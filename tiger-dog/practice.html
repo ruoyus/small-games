@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>小兔子练习关 · 先学会跑</title>
+<meta name="description" content="机械老虎来啦！的练习关：小兔子跑到金色圈圈里就得分，一共五关，越跑越快。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='88'%3E%F0%9F%90%B0%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --ink:#2b2f26;
+    --ink-soft:#5b6455;
+    --card:rgba(255,255,255,.92);
+    --line:rgba(43,47,38,.12);
+    --accent:#e0642f;
+    --accent2:#2f8f4e;
+    --gold:#f0a92c;
+    --shadow:0 18px 50px -18px rgba(24,42,20,.45);
+    --font: ui-rounded, "SF Pro Rounded", "PingFang SC", "Hiragino Sans GB",
+            "Microsoft YaHei", "Nunito", system-ui, -apple-system, sans-serif;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; margin:0; overflow:hidden; background:#5ea83f; }
+  body{
+    font-family:var(--font); color:var(--ink);
+    touch-action:none; user-select:none; -webkit-user-select:none;
+  }
+  #game{ display:block; width:100%; height:100%; touch-action:none; }
+
+  /* ---------- HUD ---------- */
+  #hud{ position:fixed; inset:0; pointer-events:none; padding:14px clamp(12px,3vw,26px); }
+  .row{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .pill{
+    background:var(--card); border:1px solid var(--line); border-radius:999px;
+    padding:7px 14px; box-shadow:0 6px 18px -10px rgba(24,42,20,.5);
+    display:flex; align-items:center; gap:9px; line-height:1;
+  }
+  .pill .lbl{ font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; }
+  .pill .val{ font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .stack{ display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+  .stack.right{ align-items:flex-end; }
+
+  /* 圈圈倒计时：数字越大越醒目，小朋友一眼知道还剩多少时间 */
+  #ringPill{ transition:background .18s ease, border-color .18s ease; }
+  #ringPill .val{ font-size:24px; }
+  #ringPill.warn{ background:rgba(240,169,44,.95); border-color:transparent; }
+  #ringPill.warn .lbl, #ringPill.warn .val{ color:#fff; }
+  #ringPill.hot{ background:rgba(214,58,32,.95); border-color:transparent; }
+  #ringPill.hot .lbl, #ringPill.hot .val{ color:#fff; }
+  #ringPill.idle{ opacity:.55; }
+
+  /* 底部提示条：教小朋友怎么操作 */
+  #hintBar{
+    position:fixed; left:50%; transform:translateX(-50%) translateY(6px);
+    bottom:calc(22px + env(safe-area-inset-bottom));
+    background:rgba(255,255,255,.94); border:1px solid var(--line);
+    border-radius:999px; padding:10px 20px; max-width:min(92vw,560px); text-align:center;
+    font-size:clamp(12.5px,2.4vw,14.5px); font-weight:800; color:var(--ink);
+    box-shadow:0 10px 24px -12px rgba(24,42,20,.6); pointer-events:none;
+    opacity:0; transition:opacity .22s ease, transform .22s ease; z-index:4;
+  }
+  #hintBar.on{ opacity:1; transform:translateX(-50%) translateY(0); }
+  #hintBar b{ color:var(--accent); }
+  kbd{
+    font-family:var(--font); font-size:.92em; font-weight:800; color:var(--ink);
+    background:#f1f3ec; border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:7px; padding:1px 7px; margin:0 1px;
+  }
+
+  #btns{ position:fixed; right:clamp(12px,3vw,26px); bottom:calc(14px + env(safe-area-inset-bottom)); display:flex; gap:10px; pointer-events:auto; }
+  .iconbtn{
+    width:44px; height:44px; border-radius:14px; border:1px solid rgba(255,255,255,.5);
+    background:rgba(255,255,255,.58); backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px);
+    box-shadow:0 6px 18px -10px rgba(24,42,20,.5);
+    font-size:19px; display:grid; place-items:center; cursor:pointer; padding:0;
+    color:var(--ink); font-family:var(--font);
+  }
+  .iconbtn:active{ transform:scale(.94); }
+  .iconbtn.off{ opacity:.45; }
+
+  #backlink{
+    position:fixed; left:clamp(12px,3vw,26px); bottom:calc(14px + env(safe-area-inset-bottom));
+    z-index:6; display:inline-flex; align-items:center; gap:6px;
+    text-decoration:none; color:var(--ink-soft); font-size:13px; font-weight:800;
+    background:rgba(255,255,255,.58); backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px);
+    border:1px solid rgba(255,255,255,.5); border-radius:999px;
+    padding:9px 15px; box-shadow:0 6px 18px -10px rgba(24,42,20,.5);
+  }
+  #backlink:active{ transform:scale(.96); }
+
+  #dashBtn{
+    position:fixed; right:calc(22px + env(safe-area-inset-right)); bottom:calc(74px + env(safe-area-inset-bottom));
+    width:84px; height:84px; border-radius:50%; border:2px solid rgba(255,255,255,.7);
+    background:linear-gradient(180deg,#ffb43c,#e0642f); color:#fff; font-family:var(--font);
+    font-size:15px; font-weight:800; letter-spacing:.06em; display:none; place-items:center;
+    box-shadow:0 12px 26px -10px rgba(120,50,10,.7); pointer-events:auto;
+  }
+  #dashBtn:active{ transform:scale(.93); }
+  #dashBtn.cool{ opacity:.5; }
+
+  /* ---------- Overlays ---------- */
+  .screen{
+    position:fixed; inset:0; display:grid; place-items:center; padding:20px;
+    background:radial-gradient(120% 100% at 50% 0%, rgba(255,255,255,.22), rgba(20,40,15,.5));
+    backdrop-filter:blur(3px); z-index:5;
+  }
+  .screen[hidden]{ display:none; }
+  .card{
+    width:min(560px,100%); background:var(--card); border-radius:28px; padding:clamp(24px,4.5vw,38px);
+    box-shadow:var(--shadow); border:1px solid rgba(255,255,255,.7); text-align:center;
+    max-height:94vh; overflow:auto;
+  }
+  .badge{
+    display:inline-block; font-size:11px; font-weight:800; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--accent); background:rgba(224,100,47,.1); border-radius:999px; padding:5px 12px;
+  }
+  h1{ font-size:clamp(24px,5.6vw,38px); margin:14px 0 6px; letter-spacing:-.02em; }
+  h1 .em{ color:var(--accent); }
+  .sub{ color:var(--ink-soft); font-size:clamp(13px,2.6vw,15px); margin:0 0 18px; line-height:1.6; }
+  .keys{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:0 0 20px; }
+  .key{
+    font-size:12.5px; font-weight:700; color:var(--ink-soft);
+    border:1px solid var(--line); background:rgba(255,255,255,.7); border-radius:12px; padding:8px 12px;
+  }
+  .key b{ color:var(--ink); font-weight:800; }
+  button.cta, a.cta{
+    appearance:none; border:0; cursor:pointer; font-family:var(--font); text-decoration:none;
+    background:linear-gradient(180deg,#f0803f,#dd5a22); color:#fff; display:inline-block;
+    font-size:17px; font-weight:800; letter-spacing:.02em;
+    padding:15px 40px; border-radius:999px; box-shadow:0 14px 28px -12px rgba(190,70,20,.85);
+    transition:transform .12s;
+  }
+  button.cta:active, a.cta:active{ transform:translateY(2px) scale(.98); }
+  button.cta.ghost, a.cta.ghost{
+    background:transparent; color:var(--ink-soft); border:1.5px solid var(--line);
+    box-shadow:none; font-size:14px; padding:11px 26px;
+  }
+  .scoreRow{ display:flex; gap:10px; justify-content:center; margin:6px 0 20px; }
+  .scoreBox{
+    flex:1; max-width:150px; border:1px solid var(--line); border-radius:18px;
+    padding:12px 8px; background:rgba(255,255,255,.66);
+  }
+  .scoreBox .k{ font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; }
+  .scoreBox .v{ font-size:28px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .foot{ margin-top:16px; font-size:12px; color:var(--ink-soft); }
+  .pair{ display:flex; gap:8px; justify-content:center; margin-bottom:16px; flex-wrap:wrap; }
+  .chip{
+    border:1px solid var(--line); border-radius:999px; padding:7px 13px; font-size:12.5px; font-weight:700;
+    background:rgba(255,255,255,.7); color:var(--ink-soft);
+  }
+  .chip i{ font-style:normal; }
+  .steps{
+    text-align:left; background:rgba(255,255,255,.62); border:1px solid var(--line);
+    border-radius:14px; padding:12px 15px; margin:0 0 18px; display:flex; flex-direction:column; gap:7px;
+  }
+  .steps .st{ font-size:12.5px; line-height:1.55; color:var(--ink-soft); display:flex; gap:8px; }
+  .steps .st b{ color:var(--ink); font-weight:800; }
+  .steps .st .n{
+    flex:none; width:19px; height:19px; border-radius:50%; background:rgba(224,100,47,.14);
+    color:var(--accent); font-size:11.5px; font-weight:800; display:grid; place-items:center; margin-top:1px;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="row">
+    <div class="stack">
+      <div class="pill"><span class="lbl">得分</span><span class="val" id="scoreV">0</span></div>
+      <div class="pill"><span class="lbl">练习关</span><span class="val" id="stageV">1/5</span></div>
+      <div class="pill"><span class="lbl">圈圈</span><span class="val" id="ringV">0/3</span></div>
+    </div>
+    <div class="stack right">
+      <div class="pill idle" id="ringPill"><span class="lbl">圈圈倒计时</span><span class="val" id="ringTimeV">--</span></div>
+      <div class="pill"><span class="lbl">用时</span><span class="val" id="timeV">0.0</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="hintBar"><span id="hintTxt"></span></div>
+
+<a id="backlink" href="../">← 小游戏</a>
+
+<div id="btns">
+  <button class="iconbtn" id="muteBtn" title="声音开关 (M)">🔊</button>
+  <button class="iconbtn" id="fsBtn" title="全屏">⛶</button>
+</div>
+<button id="dashBtn">冲刺</button>
+
+<div class="screen" id="startScreen">
+  <div class="card">
+    <span class="badge">练习关 · Practice</span>
+    <h1>小兔子<span class="em">练习关</span></h1>
+    <p class="sub">草地上会出现一个<span style="color:var(--gold);font-weight:800">金色圈圈</span>。<br>把小兔子跑进圈圈里就得分，一共 5 关，越往后要求跑得越快。</p>
+    <div class="steps">
+      <div class="st"><span class="n">1</span><span><b>先学会走</b>：第 1 关没有时间限制，慢慢跑到圈里就行。</span></div>
+      <div class="st"><span class="n">2</span><span><b>再加上速度</b>：第 2 关起圈圈会倒计时，圈上的数字就是还剩几秒。</span></div>
+      <div class="st"><span class="n">3</span><span><b>学会冲刺</b>：第 4 关起路更远，按 <kbd>空格</kbd> 冲刺才跑得赢。</span></div>
+      <div class="st"><span class="n">4</span><span><b>练完就出发</b>：5 关都过了，就可以去躲真正的机械老虎啦。</span></div>
+    </div>
+    <div class="keys">
+      <span class="key"><b>WASD</b> / <b>方向键</b> 移动</span>
+      <span class="key"><b>空格</b> 冲刺</span>
+      <span class="key"><b>P</b> 暂停</span>
+      <span class="key"><b>R</b> 重来</span>
+    </div>
+    <button class="cta" id="playBtn">开始练习</button>
+    <div style="margin-top:12px"><a class="cta ghost" href="index.html">已经是老手？直接玩 →</a></div>
+    <p class="foot">手机 / 平板：在草地上拖动就能控制方向，右下角按钮冲刺</p>
+  </div>
+</div>
+
+<div class="screen" id="doneScreen" hidden>
+  <div class="card">
+    <span class="badge" style="color:var(--accent2);background:rgba(47,143,78,.12)">Practice Clear</span>
+    <h1>练习<span class="em">全部通过</span>！</h1>
+    <p class="sub">小兔子已经会跑、会转弯、会冲刺啦 🐰<br>现在可以去躲机械老虎了。</p>
+    <div class="scoreRow">
+      <div class="scoreBox"><div class="k">得分</div><div class="v" id="finalScore">0</div></div>
+      <div class="scoreBox"><div class="k">用时</div><div class="v" id="finalTime">0s</div></div>
+      <div class="scoreBox"><div class="k">圈圈</div><div class="v" id="finalRings">0</div></div>
+    </div>
+    <a class="cta" href="index.html">进入正式游戏 →</a>
+    <div style="margin-top:12px"><button class="cta ghost" id="againBtn">再练一次</button></div>
+    <p class="foot" id="missFoot"></p>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   小兔子练习关 —— 《机械老虎来啦！》的教学关
+   草地上出现金色圈圈，把兔子跑进去就得分。
+   5 关递进：先不限时 → 加时间限制 → 距离变远 → 必须冲刺。
+   ============================================================ */
+
+var cv = document.getElementById('game');
+var ctx = cv.getContext('2d');
+
+var el = {
+  score: document.getElementById('scoreV'),
+  stage: document.getElementById('stageV'),
+  ringN: document.getElementById('ringV'),
+  ringPill: document.getElementById('ringPill'),
+  ringTime: document.getElementById('ringTimeV'),
+  time: document.getElementById('timeV'),
+  hint: document.getElementById('hintBar'),
+  hintTxt: document.getElementById('hintTxt'),
+  start: document.getElementById('startScreen'),
+  done: document.getElementById('doneScreen'),
+  finalScore: document.getElementById('finalScore'),
+  finalTime: document.getElementById('finalTime'),
+  finalRings: document.getElementById('finalRings'),
+  missFoot: document.getElementById('missFoot'),
+  mute: document.getElementById('muteBtn'),
+  fs: document.getElementById('fsBtn'),
+  dash: document.getElementById('dashBtn')
+};
+
+/* ---------------- 自适应画布 ---------------- */
+var W = 0, H = 0, DPR = 1, SZ = 1;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = Math.round(W * DPR);
+  cv.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  applyScale();
+  buildField();
+}
+window.addEventListener('resize', resize);
+
+/* ---------------- 工具 ---------------- */
+function rand(a, b){ return a + Math.random() * (b - a); }
+function randInt(a, b){ return Math.floor(rand(a, b + 1)); }
+function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+function dist2(ax, ay, bx, by){ var dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; }
+function lerp(a, b, t){ return a + (b - a) * t; }
+
+/* ---------------- 声音（纯合成，无外部文件） ---------------- */
+var sound = { on: true, ctx: null };
+function audio(){
+  if (!sound.ctx){
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    sound.ctx = new AC();
+  }
+  if (sound.ctx.state === 'suspended') sound.ctx.resume();
+  return sound.ctx;
+}
+function tone(freq, dur, type, vol, slideTo){
+  if (!sound.on) return;
+  var c = audio(); if (!c) return;
+  var o = c.createOscillator(), g = c.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(freq, c.currentTime);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(30, slideTo), c.currentTime + dur);
+  g.gain.setValueAtTime(0.0001, c.currentTime);
+  g.gain.exponentialRampToValueAtTime(vol || 0.18, c.currentTime + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
+  o.connect(g); g.connect(c.destination);
+  o.start(); o.stop(c.currentTime + dur + 0.02);
+}
+function noise(dur, vol, hp){
+  if (!sound.on) return;
+  var c = audio(); if (!c) return;
+  var n = Math.floor(c.sampleRate * dur);
+  var buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+  for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2);
+  var s = c.createBufferSource(); s.buffer = buf;
+  var f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp || 400;
+  var g = c.createGain(); g.gain.value = vol || 0.12;
+  s.connect(f); f.connect(g); g.connect(c.destination); s.start();
+}
+
+/* ---------------- 世界 ---------------- */
+var MARGIN = 26;
+var state = 'menu';                 // menu | playing | paused | done
+var rabbit, bushes = [], flowers = [], tufts = [], puffs = [], sparks = [], floaters = [];
+var ring = null, lastRing = null;
+var score = 0, elapsed = 0, runT = 0, lastT = 0;
+var stage = 0, ringsHit = 0, ringsTotal = 0, misses = 0;
+var gapT = 0, bannerT = 0, bannerTxt = '', bannerSub = '';
+var hintT = 0, movedEver = false;
+var RING_R = 54;
+
+/* 五关递进：need=要跑几个圈；slack=0 表示不限时，数字越小时间越紧；dash=该关鼓励冲刺 */
+var STAGES = [
+  { name:'第 1 关 · 走一走',   need:3, slack:0,   dash:false, tip:'用 <b>WASD</b> 或 <b>方向键</b> 让小兔子跑进金色圈圈里' },
+  { name:'第 2 关 · 跑起来',   need:3, slack:2.2, dash:false, tip:'圈圈开始倒计时啦 —— 圈上的数字就是还剩几秒' },
+  { name:'第 3 关 · 拐个弯',   need:4, slack:1.8, dash:false, tip:'路更远了，早点转弯，别撞到栅栏上' },
+  { name:'第 4 关 · 用冲刺',   need:4, slack:1.5, dash:true,  tip:'按 <kbd>空格</kbd> 冲刺！一下子能冲出去好远' },
+  { name:'第 5 关 · 飞毛腿',   need:5, slack:1.3, dash:true,  tip:'又快又准地跑完 5 个圈，就毕业啦！' }
+];
+
+/* ---------------- 速度 ---------------- */
+var RABBIT_SPEED = 240, RABBIT_ACCEL = 1500;
+var DASH_SPEED = 500, DASH_TIME = 0.30, DASH_CD = 1.0;
+function applyScale(){
+  SZ = clamp(Math.sqrt((W * H) / 810000), 0.62, 1.10);
+  RABBIT_SPEED = 240 * SZ;
+  RABBIT_ACCEL = 1500 * SZ;
+  DASH_SPEED = 500 * SZ;
+}
+
+function buildField(){
+  tufts = [];
+  var n = Math.round((W * H) / 9000);
+  n = clamp(n, 40, 190);
+  for (var i = 0; i < n; i++){
+    tufts.push({ x: rand(0, W), y: rand(0, H), h: rand(5, 13), w: rand(1.2, 2.4),
+      hue: randInt(0, 3), ph: rand(0, 6.28), sp: rand(1.2, 2.6) });
+  }
+  flowers = [];
+  for (var j = 0; j < 16; j++){
+    flowers.push({ x: rand(30, W - 30), y: rand(30, H - 30), r: rand(3.2, 5.4),
+      c: ['#fff8e6','#ffe8f0','#f4f0ff'][randInt(0,2)], ph: rand(0, 6.28) });
+  }
+}
+
+function addFloat(x, y, text, color){
+  floaters.push({ x: x, y: y, t: 0, life: 1.15, text: text, c: color || '#fff' });
+}
+
+/* ---------------- 输入 ---------------- */
+var keys = {};
+var stick = { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
+
+window.addEventListener('keydown', function(e){
+  var k = e.key.toLowerCase();
+  if (['arrowup','arrowdown','arrowleft','arrowright',' ','spacebar'].indexOf(k) >= 0) e.preventDefault();
+  keys[k] = true;
+  if (k === ' ' || k === 'spacebar') tryDash();
+  if (k === 'p' || k === 'escape') togglePause();
+  if (k === 'r' && state !== 'menu') startPractice();
+  if (k === 'm') toggleMute();
+});
+window.addEventListener('keyup', function(e){ keys[e.key.toLowerCase()] = false; });
+window.addEventListener('blur', function(){ keys = {}; stick.active = false; });
+document.addEventListener('visibilitychange', function(){
+  if (document.hidden && state === 'playing') togglePause();
+});
+
+cv.addEventListener('pointerdown', function(e){
+  if (e.pointerType === 'touch') enableTouchUI();
+  if (state !== 'playing') return;
+  if (stick.active) return;
+  stick.active = true; stick.id = e.pointerId; stick.ox = e.clientX; stick.oy = e.clientY;
+  stick.x = e.clientX; stick.y = e.clientY;
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', function(e){
+  if (!stick.active || e.pointerId !== stick.id) return;
+  stick.x = e.clientX; stick.y = e.clientY;
+});
+function endStick(e){
+  if (e.pointerId === stick.id){ stick.active = false; stick.id = null; }
+}
+cv.addEventListener('pointerup', endStick);
+cv.addEventListener('pointercancel', endStick);
+
+function tryDash(){
+  if (state !== 'playing') return;
+  if (rabbit.dashT > 0 || rabbit.dashCd > 0) return;
+  rabbit.dashT = DASH_TIME; rabbit.dashCd = DASH_CD;
+  noise(0.22, 0.1, 900);
+  for (var i = 0; i < 10; i++){
+    puffs.push({ x: rabbit.x, y: rabbit.y + 8, vx: rand(-90, 90) - rabbit.vx * .2, vy: rand(-60, 10),
+      life: rand(.3, .6), max: .6, r: rand(3, 8), c: 'dust' });
+  }
+  if (!movedEver){ movedEver = true; }
+}
+
+function bounds(o){
+  o.x = clamp(o.x, MARGIN + o.r, W - MARGIN - o.r);
+  o.y = clamp(o.y, MARGIN + o.r, H - MARGIN - o.r);
+}
+
+/* ---------------- 圈圈 ---------------- */
+function spawnRing(){
+  var st = STAGES[stage];
+  var minD = (140 + 70 * stage) * SZ;                 // 越往后起点离得越远
+  var pad = (RING_R + 26) * SZ;
+  var x = W * .5, y = H * .5, d = 0, found = false;
+  for (var i = 0; i < 80; i++){
+    var cx = rand(MARGIN + pad, W - MARGIN - pad);
+    var cy = rand(MARGIN + pad, H - MARGIN - pad);
+    var cd = Math.hypot(cx - rabbit.x, cy - rabbit.y);
+    if (cd < minD) continue;
+    if (lastRing && Math.hypot(cx - lastRing.x, cy - lastRing.y) < 110 * SZ) continue;
+    x = cx; y = cy; d = cd; found = true;
+    if (cd > minD * 1.35) break;
+  }
+  if (!found){ d = Math.hypot(x - rabbit.x, y - rabbit.y); }
+  // 倒计时 = 全速跑完需要的时间 × 宽裕系数；越往后越紧（有下限，别短得没法反应）
+  var limit = 0;
+  if (st.slack > 0) limit = clamp(d / RABBIT_SPEED * st.slack, 3.0, 20);
+  ring = { x: x, y: y, r: RING_R * SZ, t: 0, limit: limit, pop: 0 };
+  lastRing = { x: x, y: y };
+  tone(520, .1, 'sine', .10, 780);
+}
+
+function ringHit(){
+  var st = STAGES[stage];
+  var remain = ring.limit > 0 ? Math.max(0, ring.limit - ring.t) : 0;
+  var bonus = ring.limit > 0 ? Math.round(remain * 5) : 0;
+  var gain = 10 + bonus;
+  score += gain;
+  ringsHit++; ringsTotal++;
+  addFloat(ring.x, ring.y - ring.r * .9,
+           bonus > 0 ? ('+' + gain + '  ⏱+' + bonus) : ('+' + gain), '#ffe08a');
+  tone(660, .12, 'sine', .16, 990);
+  setTimeout(function(){ tone(990, .16, 'sine', .13, 1320); }, 120);
+  for (var i = 0; i < 22; i++){
+    var a = rand(0, 6.2832), sp = rand(60, 240);
+    sparks.push({ x: ring.x, y: ring.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40,
+      life: rand(.4, .85), max: .85, r: rand(2, 4.5),
+      c: ['#ffd85e','#fff3c4','#ffa93c'][randInt(0,2)] });
+  }
+  ring = null;
+  gapT = 0.45;
+  if (ringsHit >= st.need) stageClear();
+  updateHUD();
+}
+
+function ringMiss(){
+  misses++;
+  addFloat(rabbit.x, rabbit.y - 34, '⏰ 超时啦，再来一次！', '#ffd0c4');
+  tone(220, .22, 'sine', .10, 160);
+  if (STAGES[stage].dash) showHint('路太远了？按 <kbd>空格</kbd> 冲刺一下试试！', 3.4);
+  ring = null;
+  gapT = 0.75;
+}
+
+function stageClear(){
+  bannerTxt = '过关！';
+  bannerSub = stage < STAGES.length - 1 ? ('下一关：' + STAGES[stage + 1].name) : '练习全部完成！';
+  bannerT = 2.4;
+  tone(700, .12, 'sine', .14, 1050);
+  setTimeout(function(){ tone(1050, .18, 'sine', .12, 1400); }, 140);
+}
+
+function nextStage(){
+  if (stage >= STAGES.length - 1){ finish(); return; }
+  stage++; ringsHit = 0; ring = null; lastRing = null;
+  startStageBanner();
+  updateHUD();
+}
+
+function startStageBanner(){
+  var st = STAGES[stage];
+  bannerTxt = st.name;
+  bannerSub = st.tip.replace(/<[^>]+>/g, '');
+  bannerT = 2.2;
+  gapT = 2.2;
+  showHint(st.tip, 4.2);
+}
+
+function finish(){
+  state = 'done';
+  el.finalScore.textContent = Math.floor(score);
+  el.finalTime.textContent = elapsed.toFixed(1) + 's';
+  el.finalRings.textContent = ringsTotal;
+  el.missFoot.textContent = misses === 0
+    ? '一次都没超时，满分小兔子 🏆'
+    : ('超时 ' + misses + ' 次 —— 已经很棒啦，正式游戏里老虎可不会等你。');
+  el.done.hidden = false;
+  tone(880, .16, 'sine', .14, 1170);
+  setTimeout(function(){ tone(1170, .22, 'sine', .12, 1560); }, 160);
+}
+
+/* ---------------- 提示条 ---------------- */
+function showHint(html, secs){
+  el.hintTxt.innerHTML = html;
+  el.hint.classList.add('on');
+  hintT = secs || 3;
+}
+function hideHint(){ el.hint.classList.remove('on'); hintT = 0; }
+
+/* ---------------- 更新 ---------------- */
+function update(dt){
+  runT += dt;
+  elapsed += dt;
+
+  /* ---- 移动 ---- */
+  var ax = 0, ay = 0;
+  if (keys['a'] || keys['arrowleft'])  ax -= 1;
+  if (keys['d'] || keys['arrowright']) ax += 1;
+  if (keys['w'] || keys['arrowup'])    ay -= 1;
+  if (keys['s'] || keys['arrowdown'])  ay += 1;
+  if (stick.active){
+    var sx = stick.x - stick.ox, sy = stick.y - stick.oy;
+    var sl = Math.hypot(sx, sy);
+    if (sl > 8){ var lim = Math.min(sl, 62) / 62; ax += sx / sl * lim; ay += sy / sl * lim; }
+    if (sl > 62 * 0.82) tryDash();
+  }
+  if (ax || ay){ var l = Math.hypot(ax, ay); ax /= l; ay /= l; }
+
+  if (rabbit.dashT > 0) rabbit.dashT = Math.max(0, rabbit.dashT - dt);
+  if (rabbit.dashCd > 0) rabbit.dashCd = Math.max(0, rabbit.dashCd - dt);
+  var targetSpeed = rabbit.dashT > 0 ? DASH_SPEED : RABBIT_SPEED;
+  var tvx = ax * targetSpeed, tvy = ay * targetSpeed;
+  var k = clamp(RABBIT_ACCEL * dt / Math.max(targetSpeed, 1), 0, 1);
+  if (rabbit.dashT > 0) k = 1;
+  rabbit.vx = lerp(rabbit.vx, tvx, k);
+  rabbit.vy = lerp(rabbit.vy, tvy, k);
+
+  rabbit.x += rabbit.vx * dt; rabbit.y += rabbit.vy * dt;
+  bounds(rabbit);
+
+  var sp = Math.hypot(rabbit.vx, rabbit.vy);
+  if (sp > 12){
+    rabbit.ang = Math.atan2(rabbit.vy, rabbit.vx);
+    rabbit.bob += dt * (6 + sp / 26);
+    if (!movedEver){
+      movedEver = true;
+      if (hintT > 0) hintT = Math.min(hintT, 1.2);   // 会走了就把提示收起来
+    }
+  } else rabbit.bob += dt * 1.6;
+
+  if (rabbit.dashT > 0 && Math.random() < 0.55){
+    puffs.push({ x: rabbit.x - rabbit.vx * .02, y: rabbit.y + 7, vx: rand(-40, 40) - rabbit.vx * .12,
+      vy: rand(-30, 0), life: .45, max: .45, r: rand(2.5, 6), c: 'dust' });
+  }
+
+  /* ---- 圈圈 ---- */
+  if (bannerT > 0) bannerT = Math.max(0, bannerT - dt);
+  if (gapT > 0){
+    gapT -= dt;
+    if (gapT <= 0 && !ring && state === 'playing' && ringsHit < STAGES[stage].need) spawnRing();
+  }
+  if (ring){
+    ring.pop = Math.min(1, ring.pop + dt * 5);
+    ring.t += dt;
+    var hitR = ring.r * ring.pop;
+    if (ring.limit > 0 && ring.t >= ring.limit){ ringMiss(); }
+    else if (dist2(rabbit.x, rabbit.y, ring.x, ring.y) < hitR * hitR){ ringHit(); }
+  }
+  // 过关横幅演完 → 进下一关
+  if (bannerT === 0 && ringsHit >= STAGES[stage].need && state === 'playing'){
+    if (stage < STAGES.length - 1) nextStage(); else finish();
+  }
+
+  /* ---- 粒子 ---- */
+  for (var pi = puffs.length - 1; pi >= 0; pi--){
+    var p = puffs[pi];
+    p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.94; p.vy *= 0.94;
+    if (p.life <= 0) puffs.splice(pi, 1);
+  }
+  for (var si = sparks.length - 1; si >= 0; si--){
+    var s2 = sparks[si];
+    s2.life -= dt; s2.x += s2.vx * dt; s2.y += s2.vy * dt; s2.vy += 260 * dt;
+    if (s2.life <= 0) sparks.splice(si, 1);
+  }
+  for (var fi = floaters.length - 1; fi >= 0; fi--){
+    var f = floaters[fi];
+    f.t += dt; f.y -= 34 * dt;
+    if (f.t >= f.life) floaters.splice(fi, 1);
+  }
+
+  if (hintT > 0){ hintT -= dt; if (hintT <= 0) hideHint(); }
+
+  updateHUD();
+}
+
+function updateHUD(){
+  el.score.textContent = Math.floor(score);
+  el.time.textContent = elapsed.toFixed(1);
+  el.stage.textContent = (stage + 1) + '/' + STAGES.length;
+  el.ringN.textContent = ringsHit + '/' + STAGES[stage].need;
+  el.dash.classList.toggle('cool', rabbit.dashCd > 0);
+  if (ring && ring.limit > 0){
+    var rem = Math.max(0, ring.limit - ring.t);
+    el.ringTime.textContent = rem.toFixed(1);
+    var frac = rem / ring.limit;
+    el.ringPill.className = 'pill' + (frac < 0.28 ? ' hot' : (frac < 0.55 ? ' warn' : ''));
+  } else {
+    el.ringTime.textContent = ring ? '∞' : '--';
+    el.ringPill.className = 'pill idle';
+  }
+}
+
+/* ---------------- 画 ---------------- */
+function drawLawn(){
+  var g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#7cc957');
+  g.addColorStop(0.55, '#62b243');
+  g.addColorStop(1, '#4d9a34');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.globalAlpha = 0.055;
+  ctx.fillStyle = '#ffffff';
+  var band = 76;
+  for (var x = -band; x < W + band; x += band * 2) ctx.fillRect(x, 0, band, H);
+  ctx.restore();
+
+  for (var t = 0; t < tufts.length; t++){
+    var f = tufts[t];
+    var sway = Math.sin(runT * f.sp + f.ph) * 1.9;
+    var col = ['rgba(46,120,40,.5)', 'rgba(120,200,90,.55)', 'rgba(255,255,255,.22)', 'rgba(30,90,30,.4)'][f.hue];
+    ctx.strokeStyle = col; ctx.lineWidth = f.w; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(f.x, f.y);
+    ctx.quadraticCurveTo(f.x + sway * .5, f.y - f.h * .6, f.x + sway, f.y - f.h);
+    ctx.stroke();
+  }
+
+  for (var fl = 0; fl < flowers.length; fl++){
+    var o = flowers[fl];
+    var s = 1 + Math.sin(runT * 1.7 + o.ph) * 0.06;
+    ctx.save(); ctx.translate(o.x, o.y); ctx.scale(s, s);
+    ctx.globalAlpha = .9; ctx.fillStyle = o.c;
+    for (var pt = 0; pt < 5; pt++){
+      var a2 = pt / 5 * 6.2832 + o.ph;
+      ctx.beginPath(); ctx.ellipse(Math.cos(a2) * o.r * .62, Math.sin(a2) * o.r * .62, o.r * .5, o.r * .34, a2, 0, 6.2832); ctx.fill();
+    }
+    ctx.fillStyle = '#ffd65e';
+    ctx.beginPath(); ctx.arc(0, 0, o.r * .34, 0, 6.2832); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawFence(){
+  ctx.save();
+  var m = MARGIN, postGap = 46;
+  ctx.globalAlpha = .85;
+  ctx.strokeStyle = 'rgba(38,86,26,.28)'; ctx.lineWidth = 8;
+  ctx.strokeRect(m - 4, m - 4, W - (m - 4) * 2, H - (m - 4) * 2);
+  ctx.strokeStyle = '#c79a63'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(m, m); ctx.lineTo(W - m, m); ctx.lineTo(W - m, H - m); ctx.lineTo(m, H - m); ctx.closePath();
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(m, m + 3); ctx.lineTo(W - m, m + 3); ctx.lineTo(W - m, H - m - 3); ctx.lineTo(m, H - m - 3); ctx.closePath();
+  ctx.stroke();
+  ctx.fillStyle = '#b0834f';
+  for (var x = m; x <= W - m; x += postGap){
+    ctx.fillRect(x - 3, m - 9, 6, 16); ctx.fillRect(x - 3, H - m - 7, 6, 16);
+  }
+  for (var y = m; y <= H - m; y += postGap){
+    ctx.fillRect(m - 9, y - 3, 16, 6); ctx.fillRect(W - m - 7, y - 3, 16, 6);
+  }
+  ctx.restore();
+}
+
+/* 金色圈圈：外圈虚线 + 内里微光 + 倒计时弧 + 中间秒数 —— 目标在哪、还剩多久，一眼看清 */
+function drawRing(){
+  if (!ring) return;
+  var r = ring.r * ring.pop;
+  var pulse = 1 + Math.sin(runT * 3.4) * 0.035;
+  var hot = ring.limit > 0 && (ring.limit - ring.t) / ring.limit < 0.28;
+
+  ctx.save();
+  ctx.translate(ring.x, ring.y);
+
+  // 地面光斑
+  var g = ctx.createRadialGradient(0, 0, r * 0.25, 0, 0, r * 2.0);
+  g.addColorStop(0, hot ? 'rgba(255,120,80,.34)' : 'rgba(255,208,96,.34)');
+  g.addColorStop(1, 'rgba(255,208,96,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, r * 2.0, 0, 6.2832); ctx.fill();
+
+  // 圈内浅色地毯
+  ctx.globalAlpha = .30;
+  ctx.fillStyle = hot ? '#ff8a5c' : '#ffd85e';
+  ctx.beginPath(); ctx.arc(0, 0, r * 0.94 * pulse, 0, 6.2832); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // 虚线主圈（慢慢转，像在召唤）
+  ctx.save();
+  ctx.rotate(runT * 0.55);
+  ctx.setLineDash([13, 10]);
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = hot ? 'rgba(255,90,50,.95)' : 'rgba(255,236,150,.95)';
+  ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, 6.2832); ctx.stroke();
+  ctx.restore();
+
+  // 实心底圈
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = hot ? 'rgba(214,58,32,.95)' : 'rgba(240,169,44,.95)';
+  ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, 6.2832); ctx.stroke();
+
+  // 倒计时弧（从正上方开始，剩下的越少弧越短）
+  if (ring.limit > 0){
+    var frac = clamp(1 - ring.t / ring.limit, 0, 1);
+    ctx.lineWidth = 7; ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath(); ctx.arc(0, 0, r * 1.22, 0, 6.2832); ctx.stroke();
+    ctx.strokeStyle = hot ? '#d63a20' : (frac < 0.55 ? '#f0a92c' : '#3fae5f');
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.22, -Math.PI / 2, -Math.PI / 2 + 6.2832 * frac);
+    ctx.stroke();
+  }
+
+  // 中间秒数
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '800 ' + Math.round(r * 0.62) + 'px ui-rounded, system-ui, sans-serif';
+  ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(40,60,25,.5)'; ctx.lineJoin = 'round';
+  var txt = ring.limit > 0 ? String(Math.max(0, Math.ceil(ring.limit - ring.t))) : '🎯';
+  ctx.strokeText(txt, 0, r * 0.02);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(txt, 0, r * 0.02);
+  ctx.restore();
+
+  // 圈圈上方的"跑到这里"
+  ctx.save();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '800 ' + Math.round(16 * SZ) + 'px ui-rounded, system-ui, sans-serif';
+  ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(40,60,25,.5)'; ctx.lineJoin = 'round';
+  ctx.strokeText('跑到这里！', ring.x, ring.y - r * 1.55);
+  ctx.fillStyle = '#fff8e0';
+  ctx.fillText('跑到这里！', ring.x, ring.y - r * 1.55);
+  ctx.restore();
+
+  // 从兔子指向圈圈的小箭头：小朋友不会迷路
+  var dx = ring.x - rabbit.x, dy = ring.y - rabbit.y;
+  var dl = Math.hypot(dx, dy);
+  if (dl > r * 2.2){
+    var ux = dx / dl, uy = dy / dl;
+    ctx.save();
+    ctx.strokeStyle = hot ? 'rgba(255,110,70,.85)' : 'rgba(255,240,170,.9)';
+    ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (var i = 0; i < 3; i++){
+      var ph = (runT * 1.6 + i * 0.33) % 1;                 // 0→1 循环往前飘
+      var d0 = r * 1.1 + ph * (dl - r * 2.1);
+      var ax2 = rabbit.x + ux * d0, ay2 = rabbit.y + uy * d0;
+      var s3 = 13;
+      ctx.globalAlpha = 0.85 * (1 - Math.abs(ph - 0.5) * 0.9);
+      ctx.beginPath();
+      ctx.moveTo(ax2 - ux * s3 - uy * s3 * .8, ay2 - uy * s3 + ux * s3 * .8);
+      ctx.lineTo(ax2, ay2);
+      ctx.lineTo(ax2 - ux * s3 + uy * s3 * .8, ay2 - uy * s3 - ux * s3 * .8);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function drawRabbit(){
+  var d = rabbit;
+  var R = d.r;
+  var FOOT = R * 0.78;
+  var sp = Math.hypot(d.vx, d.vy);
+  var moving = sp > 20;
+  var fur = '#fdfcf8', fur2 = '#efeade', line = '#d2cbbb';
+
+  ctx.save();
+  ctx.globalAlpha = .18; ctx.fillStyle = '#0e2a0e';
+  ctx.beginPath(); ctx.ellipse(d.x, d.y + FOOT, R * .92, R * .30, 0, 0, 6.2832); ctx.fill();
+  ctx.restore();
+
+  // 冲刺拖影
+  if (d.dashT > 0 && sp > 30){
+    var bx = -d.vx / sp, by = -d.vy / sp;
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (var si = 0; si < 4; si++){
+      var off = (si - 1.5) * 7;
+      var len = 26 + Math.sin(runT * 14 + si * 1.9) * 9;
+      ctx.globalAlpha = .34 - si * 0.05;
+      ctx.strokeStyle = '#ffe9a8';
+      ctx.lineWidth = 3.4 - si * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(d.x + bx * (R + 6) - by * off, d.y + by * (R + 6) + bx * off);
+      ctx.lineTo(d.x + bx * (R + 6 + len) - by * off, d.y + by * (R + 6 + len) + bx * off);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.translate(d.x, d.y);
+  ctx.rotate(d.ang);
+  if (Math.cos(d.ang) < 0) ctx.scale(1, -1);
+
+  var bounce = moving ? Math.abs(Math.sin(d.bob * 3.1)) * 3.4 : Math.sin(d.bob) * 0.8;
+  ctx.translate(0, -bounce);
+
+  var BY = -R * 0.30;
+  var hipY = BY + R * 0.30;
+  var legT = d.bob * 1.4;
+
+  function leg(hx, ph, dark, thick){
+    var swing = moving ? Math.sin(legT + ph) * 5.0 : 0;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = dark ? fur2 : fur;
+    ctx.lineWidth = thick;
+    ctx.beginPath(); ctx.moveTo(hx, hipY); ctx.lineTo(hx + swing, FOOT); ctx.stroke();
+    ctx.fillStyle = dark ? fur2 : fur;
+    ctx.beginPath(); ctx.ellipse(hx + swing + 0.8, FOOT + 0.4, thick * 0.62, 2.5, 0, 0, 6.2832); ctx.fill();
+  }
+  leg(-R * 0.50, 2.6, true, 6.2);
+  leg(R * 0.42, 1.0, true, 4.0);
+  leg(-R * 0.36, 0.2, false, 7.2);
+  leg(R * 0.56, 3.0, false, 4.6);
+
+  ctx.save();
+  ctx.translate(-R * 0.88, BY - R * 0.18);
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = line; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.arc(0, 0, R * 0.30, 0, 6.2832); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(-R * 0.22, -R * 0.16, R * 0.18, 0, 6.2832); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(-R * 0.22, R * 0.18, R * 0.15, 0, 6.2832); ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  var bg = ctx.createLinearGradient(0, BY - R * .7, 0, BY + R * .7);
+  bg.addColorStop(0, '#ffffff'); bg.addColorStop(0.55, '#f6f3eb'); bg.addColorStop(1, '#e3ddce');
+  ctx.fillStyle = bg; ctx.strokeStyle = line; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.ellipse(0, BY, R * 1.02, R * 0.64, 0, 0, 6.2832); ctx.fill(); ctx.stroke();
+
+  ctx.save();
+  ctx.translate(R * 0.90, BY - R * 0.42);
+  var HR = R * 0.56;
+  var hg = ctx.createRadialGradient(-2, -3, 1, 0, 0, HR * 1.3);
+  hg.addColorStop(0, '#ffffff'); hg.addColorStop(1, '#f4f0e7');
+  ctx.fillStyle = hg; ctx.strokeStyle = line; ctx.lineWidth = 1.7;
+  ctx.beginPath(); ctx.arc(0, 0, HR, 0, 6.2832); ctx.fill(); ctx.stroke();
+
+  var flap = moving ? Math.sin(legT * 0.9) * 0.18 : Math.sin(runT * 2) * 0.06;
+  function ear(ex, tilt, sc){
+    ctx.save(); ctx.translate(ex, -HR * 0.52); ctx.rotate(tilt + flap);
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = line; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.ellipse(0, -HR * 0.80, HR * 0.30 * sc, HR * 1.05 * sc, 0, 0, 6.2832);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#f7c6d1';
+    ctx.beginPath(); ctx.ellipse(0, -HR * 0.80, HR * 0.145 * sc, HR * 0.72 * sc, 0, 0, 6.2832); ctx.fill();
+    ctx.restore();
+  }
+  ear(-HR * 0.44, -0.24, 1);
+  ear(HR * 0.28, 0.12, 0.88);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.ellipse(HR * 0.60, HR * 0.32, HR * 0.42, HR * 0.30, 0, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = '#ef93ad';
+  ctx.beginPath();
+  ctx.moveTo(HR * 0.86, HR * 0.16); ctx.lineTo(HR * 1.16, HR * 0.26); ctx.lineTo(HR * 0.86, HR * 0.42);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#c9a9b4'; ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(HR * 0.90, HR * 0.44); ctx.lineTo(HR * 0.74, HR * 0.52);
+  ctx.moveTo(HR * 0.74, HR * 0.52); ctx.lineTo(HR * 0.60, HR * 0.46);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(150,140,125,.6)'; ctx.lineWidth = 1;
+  for (var wi = 0; wi < 3; wi++){
+    ctx.beginPath();
+    ctx.moveTo(HR * 0.94, HR * 0.34);
+    ctx.lineTo(HR * 1.52, HR * (0.14 + wi * 0.17));
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#3a3028';
+  ctx.beginPath(); ctx.arc(HR * 0.30, -HR * 0.22, HR * 0.17, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(HR * 0.36, -HR * 0.29, HR * 0.06, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = 'rgba(246,150,170,.42)';
+  ctx.beginPath(); ctx.ellipse(HR * 0.10, HR * 0.24, HR * 0.22, HR * 0.14, 0, 0, 6.2832); ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+function drawParticles(){
+  for (var i = 0; i < puffs.length; i++){
+    var p = puffs[i];
+    ctx.globalAlpha = clamp(p.life / p.max, 0, 1) * 0.34;
+    ctx.fillStyle = p.c === 'smoke' ? '#d8d2c4' : '#d9e8b8';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  for (var j = 0; j < sparks.length; j++){
+    var s = sparks[j];
+    ctx.globalAlpha = clamp(s.life / s.max, 0, 1);
+    ctx.fillStyle = s.c;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawFloaters(){
+  if (!floaters.length) return;
+  ctx.save();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '800 17px ui-rounded, system-ui, sans-serif';
+  for (var i = 0; i < floaters.length; i++){
+    var f = floaters[i];
+    ctx.globalAlpha = clamp(1 - f.t / f.life, 0, 1);
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(40,60,25,.55)'; ctx.lineJoin = 'round';
+    ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.c;
+    ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.restore();
+}
+
+function drawStick(){
+  if (!stick.active) return;
+  var dx = stick.x - stick.ox, dy = stick.y - stick.oy;
+  var l = Math.hypot(dx, dy), max = 62;
+  var k = l > max ? max / l : 1;
+  ctx.save();
+  ctx.globalAlpha = .3;
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(stick.ox, stick.oy, max, 0, 6.2832); ctx.stroke();
+  ctx.globalAlpha = .55;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(stick.ox + dx * k, stick.oy + dy * k, 18, 0, 6.2832); ctx.fill();
+  ctx.restore();
+}
+
+function drawVignette(){
+  var g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.72);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(12,32,8,.34)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+function drawBanner(){
+  if (bannerT <= 0) return;
+  var size = Math.min(W, H) * 0.072;
+  var fade = bannerT > 2.0 ? clamp((2.2 - bannerT) / 0.4, 0, 1) : clamp(bannerT / 0.4, 0, 1);
+  ctx.save();
+  ctx.globalAlpha = fade;
+  ctx.translate(W / 2, H * 0.28);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '800 ' + Math.round(size) + 'px ui-rounded, system-ui, sans-serif';
+  ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.lineJoin = 'round';
+  ctx.strokeText(bannerTxt, 0, 0);
+  ctx.fillStyle = '#e0642f';
+  ctx.fillText(bannerTxt, 0, 0);
+  ctx.font = '700 ' + Math.round(size * 0.44) + 'px ui-rounded, system-ui, sans-serif';
+  ctx.lineWidth = 7;
+  ctx.strokeText(bannerSub, 0, size * 0.95);
+  ctx.fillStyle = '#37412f';
+  ctx.fillText(bannerSub, 0, size * 0.95);
+  ctx.restore();
+}
+
+function render(){
+  drawLawn();
+  drawRing();
+  drawRabbit();
+  drawParticles();
+  drawFloaters();
+  drawStick();
+  drawVignette();
+  drawFence();
+  drawBanner();
+
+  if (state === 'paused'){
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,.86)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#2b2f26'; ctx.textAlign = 'center';
+    ctx.font = '800 ' + Math.round(Math.min(W, H) * 0.075) + 'px ui-rounded, system-ui, sans-serif';
+    ctx.fillText('暂停中', W / 2, H / 2 - 6);
+    ctx.font = '600 16px ui-rounded, system-ui, sans-serif';
+    ctx.fillStyle = '#6b7562';
+    ctx.fillText('按 P 继续', W / 2, H / 2 + 30);
+    ctx.restore();
+  }
+}
+
+/* ---------------- 循环 ---------------- */
+function loop(now){
+  requestAnimationFrame(loop);
+  var raw = (now - lastT) / 1000;
+  var dt = isFinite(raw) ? Math.max(0, Math.min(raw, 1 / 30)) : 0;
+  lastT = now;
+
+  if (state === 'playing') update(dt);
+  else runT += dt;
+
+  render();
+}
+
+/* ---------------- 流程 ---------------- */
+function resetWorld(){
+  rabbit = { x: W * 0.5, y: H * 0.62, vx: 0, vy: 0, r: 17 * SZ, ang: -Math.PI / 2,
+             bob: 0, dashT: 0, dashCd: 0 };
+  puffs = []; sparks = []; floaters = [];
+  ring = null; lastRing = null;
+  score = 0; elapsed = 0; runT = 0;
+  stage = 0; ringsHit = 0; ringsTotal = 0; misses = 0;
+  gapT = 0; bannerT = 0; movedEver = false;
+}
+
+function startPractice(){
+  audio();
+  resize();
+  resetWorld();
+  state = 'playing';
+  el.start.hidden = true;
+  el.done.hidden = true;
+  startStageBanner();
+  updateHUD();
+  lastT = performance.now();
+}
+
+function togglePause(){
+  if (state === 'playing') state = 'paused';
+  else if (state === 'paused'){ state = 'playing'; lastT = performance.now(); }
+}
+function toggleMute(){
+  sound.on = !sound.on;
+  el.mute.textContent = sound.on ? '🔊' : '🔇';
+  el.mute.classList.toggle('off', !sound.on);
+  if (sound.on) tone(660, .08, 'sine', .1);
+}
+
+document.getElementById('playBtn').addEventListener('click', function(){ startPractice(); });
+document.getElementById('againBtn').addEventListener('click', function(){ startPractice(); });
+el.mute.addEventListener('click', toggleMute);
+el.fs.addEventListener('click', function(){
+  if (!document.fullscreenElement){
+    (document.documentElement.requestFullscreen || function(){}).call(document.documentElement);
+  } else {
+    (document.exitFullscreen || function(){}).call(document);
+  }
+});
+['pointerdown', 'pointerup'].forEach(function(ev){
+  el.dash.addEventListener(ev, function(e){
+    e.preventDefault();
+    if (ev === 'pointerdown') tryDash();
+  });
+});
+
+function enableTouchUI(){
+  if (el.dash.dataset.on === '1') return;
+  el.dash.dataset.on = '1';
+  el.dash.style.display = 'grid';
+}
+if ((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+    ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0){
+  enableTouchUI();
+}
+
+/* 圆角矩形兜底 */
+if (!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r){
+    r = Math.min(r, w / 2, h / 2);
+    this.moveTo(x + r, y);
+    this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r);
+    this.closePath();
+    return this;
+  };
+}
+
+resize();
+resetWorld();
+state = 'menu';
+requestAnimationFrame(function(t){ lastT = t; loop(t); });
+
+})();
+</script>
+</body>
+</html>

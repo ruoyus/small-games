@@ -130,6 +130,15 @@
    ============================================================ */
 var GAMES = [
   {
+    url: './tiger-dog/practice.html',
+    hero: ['🎯', '→', '🐰'],
+    sky: 'linear-gradient(135deg,#fff3c9 0%,#f7cf5a 55%,#e8a52c 100%)',
+    title: '小兔子练习关',
+    sub: 'Rabbit Practice',
+    desc: '刚开始不知道怎么操作？先来练习关：把小兔子跑进金色圈圈里就得分。一共 5 关，从不限时慢慢走，到倒计时、再到必须冲刺，练完就能去躲机械老虎。',
+    tags: ['新手教学', '键盘 / 触屏', '5 关']
+  },
+  {
     slug: 'tiger-dog',
     hero: ['🐯', '→', '🐰'],
     sky: 'linear-gradient(135deg,#b7e86c 0%,#6fc23f 55%,#3f8c2c 100%)',
@@ -156,7 +165,7 @@ function coverHTML(g){
 }
 
 function cardHTML(g){
-  return '<a class="card" href="./' + g.slug + '/">' +
+  return '<a class="card" href="' + (g.url || ('./' + g.slug + '/')) + '">' +
       coverHTML(g) +
       '<div class="body">' +
         '<div class="title"><h2>' + g.title + '</h2><span>' + g.sub + '</span></div>' +

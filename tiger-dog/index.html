@@ -220,6 +220,7 @@
       <span class="key"><b>R</b> 重来</span>
     </div>
     <button class="cta" id="playBtn">开始游戏</button>
+    <div style="margin-top:12px"><button class="cta ghost" id="practiceBtn">🐰 还不会玩？先做练习关</button></div>
     <p class="foot">手机 / 平板：在屏幕上任意位置拖动即可控制方向，右下角按钮冲刺</p>
   </div>
 </div>
@@ -1757,6 +1758,7 @@ function toggleMute(){
 }
 
 el.start.querySelector('#playBtn').addEventListener('click', function(){ startGame(1); });
+el.start.querySelector('#practiceBtn').addEventListener('click', function(){ location.href = 'practice.html'; });
 el.again.addEventListener('click', function(){ startGame(level); });      // 从死的那一关继续
 el.restart.addEventListener('click', function(){ startGame(1); });        // 彻底从第一关重来
 el.mute.addEventListener('click', toggleMute);
