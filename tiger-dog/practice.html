@@ -49,6 +49,25 @@
   #ringPill.hot .lbl, #ringPill.hot .val{ color:#fff; }
   #ringPill.idle{ opacity:.55; }
 
+  /* 体力条：和正式游戏一模一样的规则 —— 跑就掉，站住回，到 0 变慢 */
+  #staminaWrap{ width:clamp(130px,28vw,205px); }
+  #staminaBar{
+    height:9px; border-radius:999px; background:rgba(43,47,38,.14); overflow:hidden; margin-top:8px;
+    position:relative;
+  }
+  #staminaFill{
+    height:100%; width:100%; border-radius:999px;
+    background:linear-gradient(90deg,#3fae5f,#8fd94a); transition:background .2s;
+  }
+  #staminaFill.low{ background:linear-gradient(90deg,#d94a3a,#f0a03a); }
+  #staminaFill.out{ background:linear-gradient(90deg,#8e2318,#d13a2a); }
+  /* 恢复到这条线以上才解除"疲劳"，画出来避免以为回一点点就满速了 */
+  #staminaMark{
+    position:absolute; left:25%; top:-2px; width:2px; height:13px; border-radius:2px;
+    background:rgba(43,47,38,.45); pointer-events:none;
+  }
+  #staminaLbl.tired{ color:#c0392b; }
+
   /* 底部提示条：教小朋友怎么操作 */
   #hintBar{
     position:fixed; left:50%; transform:translateX(-50%) translateY(6px);
@@ -167,13 +186,20 @@
 <div id="hud">
   <div class="row">
     <div class="stack">
-      <div class="pill"><span class="lbl">得分</span><span class="val" id="scoreV">0</span></div>
+      <div class="pill"><span class="lbl">总分</span><span class="val" id="scoreV">0</span></div>
       <div class="pill"><span class="lbl">练习关</span><span class="val" id="stageV">1/5</span></div>
-      <div class="pill"><span class="lbl">圈圈</span><span class="val" id="ringV">0/3</span></div>
+      <div class="pill"><span class="lbl">圈圈</span><span class="val" id="ringV">0/5</span></div>
+      <div class="pill"><span class="lbl">本关得分</span><span class="val" id="lvScoreV">0/100</span></div>
     </div>
     <div class="stack right">
       <div class="pill idle" id="ringPill"><span class="lbl">圈圈倒计时</span><span class="val" id="ringTimeV">--</span></div>
-      <div class="pill"><span class="lbl">用时</span><span class="val" id="timeV">0.0</span></div>
+      <div class="pill" id="staminaWrap">
+        <div style="flex:1">
+          <div class="lbl" style="font-size:10px" id="staminaLbl">体力 · 跑就掉，站住回</div>
+          <div id="staminaBar"><div id="staminaFill"></div><div id="staminaMark"></div></div>
+        </div>
+      </div>
+      <div class="pill"><span class="lbl">本关用时</span><span class="val" id="timeV">0.0</span></div>
     </div>
   </div>
 </div>
@@ -192,12 +218,13 @@
   <div class="card">
     <span class="badge">练习关 · Practice</span>
     <h1>小兔子<span class="em">练习关</span></h1>
-    <p class="sub">草地上会出现一个<span style="color:var(--gold);font-weight:800">金色圈圈</span>。<br>把小兔子跑进圈圈里就得分，一共 5 关，越往后要求跑得越快。</p>
+    <p class="sub">草地上会出现一个<span style="color:var(--gold);font-weight:800">金色圈圈</span>。<br>把小兔子跑进圈圈里就得分 —— 每关 <b>5 个圈</b>，一共 5 关，越往后跑得越快。</p>
     <div class="steps">
-      <div class="st"><span class="n">1</span><span><b>先学会走</b>：第 1 关没有时间限制，慢慢跑到圈里就行。</span></div>
-      <div class="st"><span class="n">2</span><span><b>再加上速度</b>：第 2 关起圈圈会倒计时，圈上的数字就是还剩几秒。</span></div>
-      <div class="st"><span class="n">3</span><span><b>学会冲刺</b>：第 4 关起路更远，按 <kbd>空格</kbd> 冲刺才跑得赢。</span></div>
-      <div class="st"><span class="n">4</span><span><b>练完就出发</b>：5 关都过了，就可以去躲真正的机械老虎啦。</span></div>
+      <div class="st"><span class="n">1</span><span><b>跑到圈里 +20 分</b>：每关满分 <b>100 分</b>，超时一次本关扣 10 分。</span></div>
+      <div class="st"><span class="n">2</span><span><b>要拿满分才能过关</b>：5 个圈全部按时跑到才满分；没满分就得<b>重练本关</b>，不会稀里糊涂进下一关。</span></div>
+      <div class="st"><span class="n">3</span><span><b>本关单独计时</b>：每关有自己的秒表，右上角一直显示。</span></div>
+      <div class="st"><span class="n">4</span><span><b>体力跟正式游戏一样</b>：跑就掉、到 0 变慢、站着能慢慢回；冲刺要花体力，跑到圈里<b>立刻回一大截</b>。</span></div>
+      <div class="st"><span class="n">5</span><span><b>练完就出发</b>：5 关都满分，就可以去躲真正的机械老虎啦。</span></div>
     </div>
     <div class="keys">
       <span class="key"><b>WASD</b> / <b>方向键</b> 移动</span>
@@ -211,6 +238,26 @@
   </div>
 </div>
 
+<div class="screen" id="failScreen" hidden>
+  <div class="card">
+    <span class="badge" style="color:#c0392b;background:rgba(192,57,43,.1)">Try Again</span>
+    <h1 id="failTitle">本关没通过</h1>
+    <p class="sub" id="failSub">差一点点，再练一次就好。</p>
+    <div class="scoreRow">
+      <div class="scoreBox"><div class="k">本关得分</div><div class="v" id="failScore">0</div></div>
+      <div class="scoreBox"><div class="k">满分</div><div class="v" id="failMax">100</div></div>
+      <div class="scoreBox"><div class="k">超时</div><div class="v" id="failMiss">0</div></div>
+    </div>
+    <div class="pair" id="failTips"></div>
+    <button class="cta" id="retryBtn">再练本关</button>
+    <div style="margin-top:12px">
+      <button class="cta ghost" id="toFirstBtn">回到第 1 关</button>
+      <a class="cta ghost" href="index.html">去玩正式游戏</a>
+    </div>
+    <p class="foot">每一关都要拿满分才能进下一关；多练几次就熟了 💪</p>
+  </div>
+</div>
+
 <div class="screen" id="doneScreen" hidden>
   <div class="card">
     <span class="badge" style="color:var(--accent2);background:rgba(47,143,78,.12)">Practice Clear</span>
@@ -221,6 +268,7 @@
       <div class="scoreBox"><div class="k">用时</div><div class="v" id="finalTime">0s</div></div>
       <div class="scoreBox"><div class="k">圈圈</div><div class="v" id="finalRings">0</div></div>
     </div>
+    <div class="pair" id="finalTimes"></div>
     <a class="cta" href="index.html">进入正式游戏 →</a>
     <div style="margin-top:12px"><button class="cta ghost" id="againBtn">再练一次</button></div>
     <p class="foot" id="missFoot"></p>
@@ -246,7 +294,18 @@ var el = {
   ringN: document.getElementById('ringV'),
   ringPill: document.getElementById('ringPill'),
   ringTime: document.getElementById('ringTimeV'),
+  lvScore: document.getElementById('lvScoreV'),
   time: document.getElementById('timeV'),
+  stamina: document.getElementById('staminaFill'),
+  staminaLbl: document.getElementById('staminaLbl'),
+  fail: document.getElementById('failScreen'),
+  failTitle: document.getElementById('failTitle'),
+  failSub: document.getElementById('failSub'),
+  failScore: document.getElementById('failScore'),
+  failMax: document.getElementById('failMax'),
+  failMiss: document.getElementById('failMiss'),
+  failTips: document.getElementById('failTips'),
+  finalTimes: document.getElementById('finalTimes'),
   hint: document.getElementById('hintBar'),
   hintTxt: document.getElementById('hintTxt'),
   start: document.getElementById('startScreen'),
@@ -318,27 +377,47 @@ function noise(dur, vol, hp){
 
 /* ---------------- 世界 ---------------- */
 var MARGIN = 26;
-var state = 'menu';                 // menu | playing | paused | done
+var state = 'menu';                 // menu | playing | paused | failed | done
 var rabbit, bushes = [], flowers = [], tufts = [], puffs = [], sparks = [], floaters = [];
 var ring = null, lastRing = null;
 var score = 0, elapsed = 0, runT = 0, lastT = 0;
 var stage = 0, ringsHit = 0, ringsTotal = 0, misses = 0;
+var lvScore = 0, lvMiss = 0, lvTime = 0;     // 本关：得分 / 超时次数 / 用时（每关单独计）
+var levelTimes = [], attempts = 0, pendingAdvance = false, pendingFail = 0;
+var everTired = false, dashUsed = false;
 var gapT = 0, bannerT = 0, bannerTxt = '', bannerSub = '';
 var hintT = 0, movedEver = false;
 var RING_R = 54;
 
-/* 五关递进：need=要跑几个圈；slack=0 表示不限时，数字越小时间越紧；dash=该关鼓励冲刺 */
+/* 五关递进：每关都要跑满 5 个圈（满分 100），必须满分才能进下一关。
+   slack = 给的时间是"全速跑完"的多少倍，越小越紧。 */
 var STAGES = [
-  { name:'第 1 关 · 走一走',   need:3, slack:0,   dash:false, tip:'用 <b>WASD</b> 或 <b>方向键</b> 让小兔子跑进金色圈圈里' },
-  { name:'第 2 关 · 跑起来',   need:3, slack:2.2, dash:false, tip:'圈圈开始倒计时啦 —— 圈上的数字就是还剩几秒' },
-  { name:'第 3 关 · 拐个弯',   need:4, slack:1.8, dash:false, tip:'路更远了，早点转弯，别撞到栅栏上' },
-  { name:'第 4 关 · 用冲刺',   need:4, slack:1.5, dash:true,  tip:'按 <kbd>空格</kbd> 冲刺！一下子能冲出去好远' },
-  { name:'第 5 关 · 飞毛腿',   need:5, slack:1.3, dash:true,  tip:'又快又准地跑完 5 个圈，就毕业啦！' }
+  { name:'第 1 关 · 走一走',  need:5, slack:3.2, dash:false, tip:'用 <b>WASD</b> 或 <b>方向键</b> 让小兔子跑进金色圈圈里，本关要跑 <b>5 个</b>' },
+  { name:'第 2 关 · 跑起来',  need:5, slack:2.6, dash:false, tip:'圈圈会倒计时 —— 圈上的数字就是还剩几秒，<b>超时一次就拿不到满分</b>' },
+  { name:'第 3 关 · 拐个弯',  need:5, slack:2.2, dash:false, tip:'路更远了，早点转弯；跑久了体力会见底，速度会变慢' },
+  { name:'第 4 关 · 用冲刺',  need:5, slack:1.9, dash:true,  tip:'按 <kbd>空格</kbd> 冲刺！它要花体力，别一口气冲光' },
+  { name:'第 5 关 · 飞毛腿',  need:5, slack:1.6, dash:true,  tip:'5 个圈全部按时跑到 = 满分 100，就毕业啦！' }
 ];
+var RING_SCORE = 20, MISS_PENALTY = 10;
+var MAX_SCORE = STAGES[0].need * RING_SCORE;   // 每关满分 100
+
+/* ---------- 体力：和正式游戏完全一样的原则 ----------
+   1) 跑 → 体力匀速下降（6/s，冲刺时 14/s）
+   2) 体力见底 → "疲劳"，速度只剩七成；回到 25 以上才解除
+   3) 站着不动慢慢回（20/s）；跑到圈圈里立刻 +50（相当于正式游戏里吃菜）
+   ------------------------------------------------ */
+var STAM_MAX = 100;
+var STAM_RUN_DRAIN = 6;
+var STAM_BOOST_DRAIN = 14;
+var STAM_REST_REGEN = 20;
+var STAM_REST_DELAY = 0.25;
+var STAM_RING = 50;
+var TIRED_MUL = 0.7;
+var TIRED_EXIT = 25;
 
 /* ---------------- 速度 ---------------- */
 var RABBIT_SPEED = 240, RABBIT_ACCEL = 1500;
-var DASH_SPEED = 500, DASH_TIME = 0.30, DASH_CD = 1.0;
+var DASH_SPEED = 500, DASH_TIME = 0.30, DASH_COST = 30;
 function applyScale(){
   SZ = clamp(Math.sqrt((W * H) / 810000), 0.62, 1.10);
   RABBIT_SPEED = 240 * SZ;
@@ -375,7 +454,7 @@ window.addEventListener('keydown', function(e){
   keys[k] = true;
   if (k === ' ' || k === 'spacebar') tryDash();
   if (k === 'p' || k === 'escape') togglePause();
-  if (k === 'r' && state !== 'menu') startPractice();
+  if (k === 'r' && state !== 'menu') startLevel(stage);   // R = 重练本关
   if (k === 'm') toggleMute();
 });
 window.addEventListener('keyup', function(e){ keys[e.key.toLowerCase()] = false; });
@@ -404,8 +483,16 @@ cv.addEventListener('pointercancel', endStick);
 
 function tryDash(){
   if (state !== 'playing') return;
-  if (rabbit.dashT > 0 || rabbit.dashCd > 0) return;
-  rabbit.dashT = DASH_TIME; rabbit.dashCd = DASH_CD;
+  // 冲刺要花体力（和正式游戏一致）：体力不够就冲不动
+  if (rabbit.dashT > 0 || rabbit.stam < DASH_COST){
+    if (rabbit.stam < DASH_COST && rabbit.dashT <= 0){
+      addFloat(rabbit.x, rabbit.y - 40, '体力不够了！', '#ffd0c4');
+      tone(200, .1, 'sine', .07, 150);
+    }
+    return;
+  }
+  rabbit.stam -= DASH_COST; rabbit.dashT = DASH_TIME; rabbit.restT = 0;
+  dashUsed = true;
   noise(0.22, 0.1, 900);
   for (var i = 0; i < 10; i++){
     puffs.push({ x: rabbit.x, y: rabbit.y + 8, vx: rand(-90, 90) - rabbit.vx * .2, vy: rand(-60, 10),
@@ -436,22 +523,29 @@ function spawnRing(){
   }
   if (!found){ d = Math.hypot(x - rabbit.x, y - rabbit.y); }
   // 倒计时 = 全速跑完需要的时间 × 宽裕系数；越往后越紧（有下限，别短得没法反应）
-  var limit = 0;
-  if (st.slack > 0) limit = clamp(d / RABBIT_SPEED * st.slack, 3.0, 20);
+  // 已经开始跑了才出生、而且兔子正在"疲劳"（速度七成）时给点补偿，不然太冤
+  var limit = clamp(d / RABBIT_SPEED * st.slack, 3.0, 20);
+  if (rabbit.tired) limit *= 1.35;
   ring = { x: x, y: y, r: RING_R * SZ, t: 0, limit: limit, pop: 0 };
   lastRing = { x: x, y: y };
   tone(520, .1, 'sine', .10, 780);
 }
 
+/* 本关得分：跑到几个圈 × 20，每超时一次 −10。
+   每次都按"总账"重算，免得先超时时 0 分被 max(0,...) 吃掉、跑满后又变回满分。 */
+function calcScore(){
+  return Math.max(0, RING_SCORE * ringsHit - MISS_PENALTY * lvMiss);
+}
+
 function ringHit(){
   var st = STAGES[stage];
-  var remain = ring.limit > 0 ? Math.max(0, ring.limit - ring.t) : 0;
-  var bonus = ring.limit > 0 ? Math.round(remain * 5) : 0;
-  var gain = 10 + bonus;
-  score += gain;
   ringsHit++; ringsTotal++;
-  addFloat(ring.x, ring.y - ring.r * .9,
-           bonus > 0 ? ('+' + gain + '  ⏱+' + bonus) : ('+' + gain), '#ffe08a');
+  lvScore = calcScore();
+  addFloat(ring.x, ring.y - ring.r * .9, '+' + RING_SCORE, '#ffe08a');
+  // 跑到圈圈 = 回体力（正式游戏里是吃胡萝卜 / 白菜）
+  rabbit.stam = Math.min(STAM_MAX, rabbit.stam + STAM_RING);
+  rabbit.restT = 0;
+  if (rabbit.stam < STAM_MAX * 0.98) addFloat(rabbit.x, rabbit.y - 52, '体力 +' + STAM_RING, '#b7f0a0');
   tone(660, .12, 'sine', .16, 990);
   setTimeout(function(){ tone(990, .16, 'sine', .13, 1320); }, 120);
   for (var i = 0; i < 22; i++){
@@ -462,32 +556,62 @@ function ringHit(){
   }
   ring = null;
   gapT = 0.45;
-  if (ringsHit >= st.need) stageClear();
+  // 跑满 5 个圈才结算：满分过关，否则留在本关重练
+  if (ringsHit >= st.need){
+    gapT = 1.0;
+    if (lvScore >= MAX_SCORE) stageClear();
+    else pendingFail = 0.9;      // 让小朋友看清最后一个圈是怎么進的，再判本关结果
+  }
   updateHUD();
 }
 
 function ringMiss(){
-  misses++;
-  addFloat(rabbit.x, rabbit.y - 34, '⏰ 超时啦，再来一次！', '#ffd0c4');
+  lvMiss++; misses++;
+  lvScore = calcScore();
+  addFloat(rabbit.x, rabbit.y - 34, '⏰ 超时！本关 -' + MISS_PENALTY + ' 分', '#ffd0c4');
   tone(220, .22, 'sine', .10, 160);
-  if (STAGES[stage].dash) showHint('路太远了？按 <kbd>空格</kbd> 冲刺一下试试！', 3.4);
+  if (STAGES[stage].dash) showHint('路太远？按 <kbd>空格</kbd> 冲刺一段（要花体力）', 3.4);
   ring = null;
   gapT = 0.75;
 }
 
 function stageClear(){
-  bannerTxt = '过关！';
+  score += MAX_SCORE;
+  levelTimes[stage] = lvTime;
+  pendingAdvance = true;
+  bannerTxt = '满分过关！';
   bannerSub = stage < STAGES.length - 1 ? ('下一关：' + STAGES[stage + 1].name) : '练习全部完成！';
   bannerT = 2.4;
   tone(700, .12, 'sine', .14, 1050);
   setTimeout(function(){ tone(1050, .18, 'sine', .12, 1400); }, 140);
 }
 
-function nextStage(){
-  if (stage >= STAGES.length - 1){ finish(); return; }
-  stage++; ringsHit = 0; ring = null; lastRing = null;
-  startStageBanner();
-  updateHUD();
+/* 没拿满分 → 留在本关，绝不自动进下一关 */
+function failStage(){
+  if (state !== 'playing') return;
+  state = 'failed';
+  attempts++;
+  ring = null; lastRing = null; gapT = 0; bannerT = 0;
+  hideHint();
+  el.failScore.textContent = lvScore;
+  el.failMax.textContent = MAX_SCORE;
+  el.failMiss.textContent = lvMiss;
+  el.failTitle.textContent = lvMiss > 0
+    ? ('超时 ' + lvMiss + ' 次，差 ' + (MAX_SCORE - lvScore) + ' 分')
+    : '本关没通过';
+  el.failSub.textContent = '要拿满分 ' + MAX_SCORE + ' 分才能进下一关 —— 再练一次就好！';
+  var tips = [];
+  if (lvMiss > 0 && STAGES[stage].dash) tips.push(['⚡', '一开始先朝圈圈方向按 空格 冲刺']);
+  else if (lvMiss > 0) tips.push(['🏃', '圈圈一出现就朝它跑，别绕路']);
+  if (everTired) tips.push(['😪', '体力跑光会变慢，站着停一下就回来']);
+  if (!dashUsed && STAGES[stage].dash) tips.push(['⌨️', '空格 = 冲刺（一次花 30 体力）']);
+  if (rabbit.stam < 40) tips.push(['🥕', '跑到圈圈里会立刻回体力']);
+  if (!tips.length) tips.push(['💯', '差一点点，再来一次就是满分']);
+  el.failTips.innerHTML = tips.map(function(t){
+    return '<span class="chip"><i>' + t[0] + '</i> ' + t[1] + '</span>';
+  }).join('');
+  el.fail.hidden = false;
+  tone(300, .24, 'sine', .10, 190);
 }
 
 function startStageBanner(){
@@ -504,9 +628,15 @@ function finish(){
   el.finalScore.textContent = Math.floor(score);
   el.finalTime.textContent = elapsed.toFixed(1) + 's';
   el.finalRings.textContent = ringsTotal;
-  el.missFoot.textContent = misses === 0
-    ? '一次都没超时，满分小兔子 🏆'
-    : ('超时 ' + misses + ' 次 —— 已经很棒啦，正式游戏里老虎可不会等你。');
+  // 每关各计一次：把五关的本关用时列出来
+  el.finalTimes.innerHTML = STAGES.map(function(st, i){
+    var t = levelTimes[i];
+    return '<span class="chip"><i>' + (i + 1) + '</i> 第' + (i + 1) + '关 ' +
+           (t === undefined ? '—' : t.toFixed(1) + 's') + '</span>';
+  }).join('');
+  el.missFoot.textContent = attempts === 0
+    ? '五关一次都没重来，满分小兔子 🏆'
+    : ('重练了 ' + attempts + ' 次才练成 —— 已经很棒啦，正式游戏里老虎可不会等你。');
   el.done.hidden = false;
   tone(880, .16, 'sine', .14, 1170);
   setTimeout(function(){ tone(1170, .22, 'sine', .12, 1560); }, 160);
@@ -524,6 +654,7 @@ function hideHint(){ el.hint.classList.remove('on'); hintT = 0; }
 function update(dt){
   runT += dt;
   elapsed += dt;
+  lvTime += dt;                      // 本关单独计时，重来本关会清零
 
   /* ---- 移动 ---- */
   var ax = 0, ay = 0;
@@ -540,8 +671,9 @@ function update(dt){
   if (ax || ay){ var l = Math.hypot(ax, ay); ax /= l; ay /= l; }
 
   if (rabbit.dashT > 0) rabbit.dashT = Math.max(0, rabbit.dashT - dt);
-  if (rabbit.dashCd > 0) rabbit.dashCd = Math.max(0, rabbit.dashCd - dt);
-  var targetSpeed = rabbit.dashT > 0 ? DASH_SPEED : RABBIT_SPEED;
+  // 疲劳时连冲刺都会被压住 —— 和正式游戏一条规则，别在这里学错习惯
+  var targetSpeed = rabbit.dashT > 0 ? DASH_SPEED * (rabbit.tired ? 0.82 : 1)
+                  : RABBIT_SPEED * (rabbit.tired ? TIRED_MUL : 1);
   var tvx = ax * targetSpeed, tvy = ay * targetSpeed;
   var k = clamp(RABBIT_ACCEL * dt / Math.max(targetSpeed, 1), 0, 1);
   if (rabbit.dashT > 0) k = 1;
@@ -561,6 +693,23 @@ function update(dt){
     }
   } else rabbit.bob += dt * 1.6;
 
+  /* ---- 体力：跑就掉（冲刺掉得更快），站住慢慢回，到 0 变慢 ---- */
+  if (sp > 20){
+    rabbit.restT = 0;
+    rabbit.stam = Math.max(0, rabbit.stam - (rabbit.dashT > 0 ? STAM_BOOST_DRAIN : STAM_RUN_DRAIN) * dt);
+  } else {
+    rabbit.restT += dt;
+    if (rabbit.restT > STAM_REST_DELAY)
+      rabbit.stam = Math.min(STAM_MAX, rabbit.stam + STAM_REST_REGEN * dt);
+  }
+  var wasTired = rabbit.tired;
+  if (rabbit.stam <= 0.5) rabbit.tired = true;
+  else if (rabbit.stam >= TIRED_EXIT) rabbit.tired = false;
+  if (rabbit.tired && !wasTired){
+    everTired = true;
+    showHint('😪 跑累了，速度变慢！站着停一下体力慢慢回来，跑到圈圈里会立刻回一大截', 4.0);
+  }
+
   if (rabbit.dashT > 0 && Math.random() < 0.55){
     puffs.push({ x: rabbit.x - rabbit.vx * .02, y: rabbit.y + 7, vx: rand(-40, 40) - rabbit.vx * .12,
       vy: rand(-30, 0), life: .45, max: .45, r: rand(2.5, 6), c: 'dust' });
@@ -579,9 +728,14 @@ function update(dt){
     if (ring.limit > 0 && ring.t >= ring.limit){ ringMiss(); }
     else if (dist2(rabbit.x, rabbit.y, ring.x, ring.y) < hitR * hitR){ ringHit(); }
   }
-  // 过关横幅演完 → 进下一关
-  if (bannerT === 0 && ringsHit >= STAGES[stage].need && state === 'playing'){
-    if (stage < STAGES.length - 1) nextStage(); else finish();
+  // 结算：跑满 5 圈但没满分 → 判本关失败（不自动进下一关）；满分 → 横幅演完才进下一关
+  if (pendingFail > 0 && state === 'playing'){
+    pendingFail -= dt;
+    if (pendingFail <= 0) failStage();
+  }
+  if (pendingAdvance && bannerT === 0 && state === 'playing'){
+    pendingAdvance = false;
+    if (stage < STAGES.length - 1) startLevel(stage + 1); else finish();
   }
 
   /* ---- 粒子 ---- */
@@ -611,7 +765,18 @@ function updateHUD(){
   el.time.textContent = elapsed.toFixed(1);
   el.stage.textContent = (stage + 1) + '/' + STAGES.length;
   el.ringN.textContent = ringsHit + '/' + STAGES[stage].need;
-  el.dash.classList.toggle('cool', rabbit.dashCd > 0);
+  el.lvScore.textContent = lvScore + '/' + MAX_SCORE;
+  el.time.textContent = lvTime.toFixed(1);
+  // 已经掉过分就别装作还能满分 —— 数字变红，提前知道本关要重来
+  el.lvScore.style.color = (lvScore < MAX_SCORE) ? '#c0392b' : '';
+  el.dash.classList.toggle('cool', rabbit.stam < DASH_COST || rabbit.dashT > 0);
+  el.stamina.style.width = rabbit.stam.toFixed(1) + '%';
+  el.stamina.className = rabbit.tired ? 'out' : (rabbit.stam < 32 ? 'low' : '');
+  var lbl = rabbit.tired ? '体力耗尽 · 速度变慢了！' : '体力 · 跑就掉，站住回，到圈里回满';
+  if (el.staminaLbl.textContent !== lbl){
+    el.staminaLbl.textContent = lbl;
+    el.staminaLbl.className = rabbit.tired ? 'lbl tired' : 'lbl';
+  }
   if (ring && ring.limit > 0){
     var rem = Math.max(0, ring.limit - ring.t);
     el.ringTime.textContent = rem.toFixed(1);
@@ -1017,26 +1182,45 @@ function loop(now){
 }
 
 /* ---------------- 流程 ---------------- */
+function resetLevelVars(){
+  ringsHit = 0; lvScore = 0; lvMiss = 0; lvTime = 0;
+  ring = null; lastRing = null;
+  gapT = 0; bannerT = 0; pendingAdvance = false; pendingFail = 0;
+  everTired = false; dashUsed = false;
+  puffs = []; sparks = []; floaters = [];
+}
+
 function resetWorld(){
   rabbit = { x: W * 0.5, y: H * 0.62, vx: 0, vy: 0, r: 17 * SZ, ang: -Math.PI / 2,
-             bob: 0, dashT: 0, dashCd: 0 };
+             bob: 0, dashT: 0, stam: STAM_MAX, tired: false, restT: 0 };
   puffs = []; sparks = []; floaters = [];
-  ring = null; lastRing = null;
   score = 0; elapsed = 0; runT = 0;
-  stage = 0; ringsHit = 0; ringsTotal = 0; misses = 0;
-  gapT = 0; bannerT = 0; movedEver = false;
+  stage = 0; ringsTotal = 0; misses = 0; attempts = 0; levelTimes = [];
+  movedEver = false;
+  resetLevelVars();
+}
+
+/* 开始/重来某一关：随便重来多少次都可以，但绝不是自动往前进 */
+function startLevel(n){
+  stage = clamp(n, 0, STAGES.length - 1);
+  rabbit.x = W * 0.5; rabbit.y = H * 0.62;
+  rabbit.vx = 0; rabbit.vy = 0; rabbit.dashT = 0;
+  rabbit.stam = STAM_MAX; rabbit.tired = false; rabbit.restT = 0;
+  resetLevelVars();
+  state = 'playing';
+  el.start.hidden = true;
+  el.done.hidden = true;
+  el.fail.hidden = true;
+  startStageBanner();
+  updateHUD();
+  lastT = performance.now();
 }
 
 function startPractice(){
   audio();
   resize();
   resetWorld();
-  state = 'playing';
-  el.start.hidden = true;
-  el.done.hidden = true;
-  startStageBanner();
-  updateHUD();
-  lastT = performance.now();
+  startLevel(0);
 }
 
 function togglePause(){
@@ -1052,6 +1236,8 @@ function toggleMute(){
 
 document.getElementById('playBtn').addEventListener('click', function(){ startPractice(); });
 document.getElementById('againBtn').addEventListener('click', function(){ startPractice(); });
+document.getElementById('retryBtn').addEventListener('click', function(){ startLevel(stage); });
+document.getElementById('toFirstBtn').addEventListener('click', function(){ startPractice(); });
 el.mute.addEventListener('click', toggleMute);
 el.fs.addEventListener('click', function(){
   if (!document.fullscreenElement){
